@@ -1,0 +1,14 @@
+node_modules/
+.env
+.DS_Store
+dist/
+build/
+*.log
+*.tmp
+prisma.config.ts.disabled
+test.js
+clean_error.txt
+db_error.txt
+prisma_error.log
+prisma_error2.log
+prisma_test.log
