@@ -59,7 +59,6 @@ export default function Home() {
       {/* BARBERS SECTION */}
       <div className="flex justify-between items-center mb-5">
         <h2 className="text-xl font-bold text-zinc-100 tracking-wide">Nuestros Barberos</h2>
-        <button className="text-[#CFAE79] text-[15px] pr-1">Ver todos &gt;</button>
       </div>
       <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
         {mockBarbersFromDB.map((barber) => (

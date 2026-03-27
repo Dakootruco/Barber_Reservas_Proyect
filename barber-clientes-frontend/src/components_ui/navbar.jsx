@@ -19,9 +19,9 @@ function Navbar() {
                     </Link>
                 </li>
 
-                {/* CATALOGO */}
+                {/* AGENDAR*/}
                 <li>
-                    <Link to="/services" className={`flex flex-col items-center gap-1 transition-colors ${isActive('/services') ? 'text-[#CFAE79]' : 'text-gray-500 hover:text-gray-400'}`}>
+                    <Link to="/Agendar" className={`flex flex-col items-center gap-1 transition-colors ${isActive('/Agendar') ? 'text-[#CFAE79]' : 'text-gray-500 hover:text-gray-400'}`}>
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>

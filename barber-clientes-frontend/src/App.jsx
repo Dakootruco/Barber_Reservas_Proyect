@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Home from './components/Home.jsx'
 import Login from './components/Login.jsx'
-import Service from './components/Service.jsx'
+import Service from './components/Agendar.jsx'
 import Perfil from './components/Perfil.jsx'
 import Schedule from './components/Schedule.jsx'
 import Navbar from './components_ui/navbar.jsx'
@@ -14,7 +14,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/services" element={<Service />} />
+          <Route path="/Agendar" element={<Service />} />
           <Route path="/perfil" element={<Perfil />} />
           <Route path="/schedule" element={<Schedule />} />
           <Route path="/select" element={<Select />} />
