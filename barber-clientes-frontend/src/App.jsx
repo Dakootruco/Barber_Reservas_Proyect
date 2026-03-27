@@ -5,7 +5,7 @@ import Service from './components/Service.jsx'
 import Perfil from './components/Perfil.jsx'
 import Schedule from './components/Schedule.jsx'
 import Navbar from './components_ui/navbar.jsx'
-import './App.css'
+import Select from './components/Select.jsx'
 
 function App() {
   return (
@@ -17,6 +17,7 @@ function App() {
           <Route path="/services" element={<Service />} />
           <Route path="/perfil" element={<Perfil />} />
           <Route path="/schedule" element={<Schedule />} />
+          <Route path="/select" element={<Select />} />
         </Routes>
         <Navbar />
       </BrowserRouter>

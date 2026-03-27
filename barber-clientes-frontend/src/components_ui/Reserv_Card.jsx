@@ -17,7 +17,7 @@ function Reserv_Card() {
 
                     <div className="flex items-center gap-2 mt-1">
                         <img
-                            src=""
+                            src={null}
                             alt="Barbero"
                             className="w-7 h-7 rounded-full object-cover"
                         />
