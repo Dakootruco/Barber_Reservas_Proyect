@@ -6,6 +6,11 @@ function Navbar() {
     // Función para saber si estamos en esa ruta
     const isActive = (path) => location.pathname === path;
 
+    // Ocultar Navbar en la ruta de login
+    if (location.pathname === '/login' || location.pathname === '/signup') {
+        return null;
+    }
+
     return (
         <nav className="fixed bottom-0 left-0 right-0 bg-[#1A1A24] border-t border-[#2A2A3A] px-6 py-3 pb-8 md:pb-3 z-50">
             <ul className="flex justify-between items-center max-w-md mx-auto">
