@@ -15,6 +15,7 @@ model Cliente {
   id        Int       @id @default(autoincrement())
   nombre    String
   email     String    @unique
+  password  String
   telefono  String?
   reservas  Reserva[]
   createdAt DateTime  @default(now())

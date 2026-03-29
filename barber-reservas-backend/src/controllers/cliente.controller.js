@@ -1,4 +1,6 @@
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
 // Instanciamos Prisma para conectarnos a Supabase
 const prisma = new PrismaClient();
@@ -68,16 +70,79 @@ export const crearReservaPrueba = async (req, res) => {
 // CRUD DE CLIENTES
 // ==========================================
 
-export const crearCliente = async (req, res) => {
+export const registrarCliente = async (req, res) => {
   try {
-    const { nombre, email, telefono } = req.body;
+    const { nombre, email, telefono, password } = req.body;
+
+    if (!nombre || !email || !password) {
+      return res.status(400).json({ error: "Faltan datos obligatorios (nombre, email, password)" });
+    }
+
+    // Verificar si el correo ya existe
+    const clienteExistente = await prisma.cliente.findUnique({ where: { email } });
+    if (clienteExistente) {
+      return res.status(400).json({ error: "El correo ya está registrado" });
+    }
+
+    // Encriptar la contraseña
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
     const nuevoCliente = await prisma.cliente.create({
-      data: { nombre, email, telefono }
+      data: { 
+        nombre, 
+        email, 
+        telefono, 
+        password: hashedPassword 
+      }
     });
-    res.status(201).json(nuevoCliente);
+
+    res.status(201).json({ mensaje: "Cliente registrado con éxito", clienteId: nuevoCliente.id });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Error al crear el cliente" });
+    res.status(500).json({ error: "Error al registrar el cliente" });
+  }
+};
+
+export const loginCliente = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Por favor provee email y contraseña" });
+    }
+
+    // Verificar si el cliente existe
+    const cliente = await prisma.cliente.findUnique({ where: { email } });
+    if (!cliente) {
+      return res.status(401).json({ error: "Credenciales inválidas" });
+    }
+
+    // Verificar contraseña
+    const passwordValida = await bcrypt.compare(password, cliente.password);
+    if (!passwordValida) {
+      return res.status(401).json({ error: "Credenciales inválidas" });
+    }
+
+    // Generar Token JWT
+    const token = jwt.sign(
+      { id: cliente.id, email: cliente.email },
+      process.env.JWT_SECRET || 'supersecretkey_cambiame_en_produccion',
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      mensaje: "Login exitoso",
+      token,
+      cliente: {
+        id: cliente.id,
+        nombre: cliente.nombre,
+        email: cliente.email
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error en el servidor durante el login" });
   }
 };
 

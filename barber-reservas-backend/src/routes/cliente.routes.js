@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { 
   obtenerServicios, 
   crearReservaPrueba,
-  crearCliente,
+  registrarCliente,
+  loginCliente,
   obtenerClientes,
   obtenerClientePorId,
   actualizarCliente,
@@ -14,7 +15,15 @@ import { obtenerBarberos } from '../controllers/barbero.controller.js';
 
 const router = Router();
 
+// ==========================================
+// RUTAS DE AUTENTICACION
+// ==========================================
+router.post('/register', registrarCliente);
+router.post('/login', loginCliente);
+
+// ==========================================
 // Rutas para el Frontend del Cliente
+// ==========================================
 router.get('/servicios', obtenerServicios);
 router.get('/barberos', obtenerBarberos);
 
@@ -26,9 +35,8 @@ router.post('/reservas', crearReserva);
 router.get('/reserva-prueba', crearReservaPrueba);
 
 // ==========================================
-// RUTAS CRUD DE CLIENTES
+// RUTAS CRUD DE CLIENTES (ADMIN)
 // ==========================================
-router.post('/', crearCliente);
 router.get('/', obtenerClientes);
 router.get('/:id', obtenerClientePorId);
 router.put('/:id', actualizarCliente);
