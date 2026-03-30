@@ -14,7 +14,7 @@ function Reserv_Card() {
             }
 
             try {
-                const response = await fetch("http://localhost:3000/api/cliente/reservas/mis-citas", {
+                const response = await fetch(import.meta.env.PROD ? "https://barber-reservas-proyect.onrender.com/api/cliente/reservas/mis-citas" : "http://localhost:3000/api/cliente/reservas/mis-citas", {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 const data = await response.json();

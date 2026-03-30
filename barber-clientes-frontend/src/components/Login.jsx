@@ -25,7 +25,7 @@ export default function Login() {
 
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:3000/api/cliente/login", {
+      const response = await fetch(import.meta.env.PROD ? "https://barber-reservas-proyect.onrender.com/api/cliente/login" : "http://localhost:3000/api/cliente/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData)

@@ -35,7 +35,7 @@ export default function Perfil() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:3000/api/cliente/mi-perfil", {
+      const response = await fetch(import.meta.env.PROD ? "https://barber-reservas-proyect.onrender.com/api/cliente/mi-perfil" : "http://localhost:3000/api/cliente/mi-perfil", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

@@ -20,7 +20,7 @@ export default function Select() {
     useEffect(() => {
         const fetchBarberos = async () => {
             try {
-                const response = await fetch("http://localhost:3000/api/cliente/barberos");
+                const response = await fetch(import.meta.env.PROD ? "https://barber-reservas-proyect.onrender.com/api/cliente/barberos" : "http://localhost:3000/api/cliente/barberos");
                 const data = await response.json();
                 if (response.ok) {
                     setBarberos(data);
@@ -102,7 +102,7 @@ export default function Select() {
             // Construir la fecha exacta uniendo el día y la hora
             const fechaHoraCompleta = new Date(`${selectedDate}T${selectedTime}:00`);
 
-            const response = await fetch("http://localhost:3000/api/cliente/reservas", {
+            const response = await fetch(import.meta.env.PROD ? "https://barber-reservas-proyect.onrender.com/api/cliente/reservas" : "http://localhost:3000/api/cliente/reservas", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

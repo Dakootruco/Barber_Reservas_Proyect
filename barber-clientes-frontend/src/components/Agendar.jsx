@@ -10,7 +10,7 @@ export default function Service() {
   useEffect(() => {
     const fetchServices = async () => {
       try {
-        const response = await fetch("http://localhost:3000/api/cliente/servicios");
+        const response = await fetch(import.meta.env.PROD ? "https://barber-reservas-proyect.onrender.com/api/cliente/servicios" : "http://localhost:3000/api/cliente/servicios");
         const data = await response.json();
         if (response.ok) {
           setServices(data);

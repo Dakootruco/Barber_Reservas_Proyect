@@ -19,7 +19,7 @@ export default function Home() {
     // Función para obtener los barberos reales desde el backend
     const fetchBarberos = async () => {
       try {
-        const response = await fetch("http://localhost:3000/api/cliente/barberos");
+        const response = await fetch(import.meta.env.PROD ? "https://barber-reservas-proyect.onrender.com/api/cliente/barberos" : "http://localhost:3000/api/cliente/barberos");
         const data = await response.json();
         if (response.ok) {
           setBarberos(data);
