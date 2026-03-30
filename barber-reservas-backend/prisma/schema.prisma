@@ -26,6 +26,7 @@ model Barbero {
   id             Int       @id @default(autoincrement())
   nombre         String
   horarioLaboral String?   // Ej: "09:00 - 18:00"
+  imagen         String?   // URL de la foto de perfil
   reservas       Reserva[]
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -37,6 +38,7 @@ model Servicio {
   descripcion String?
   precio      Float     // Precio en moneda local
   duracion    Int       // Duración en minutos
+  imagen      String?   // URL representativa del corte
   reservas    Reserva[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

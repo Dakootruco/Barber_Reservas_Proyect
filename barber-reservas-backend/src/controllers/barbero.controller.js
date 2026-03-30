@@ -33,7 +33,7 @@ export const obtenerBarberos = async (req, res) => {
 
 export const crearBarbero = async (req, res) => {
   try {
-    const { nombre, horarioLaboral } = req.body;
+    const { nombre, horarioLaboral, imagen } = req.body;
     
     // Validación básica: al menos necesitamos el nombre para crear un barbero
     if (!nombre) {
@@ -43,7 +43,8 @@ export const crearBarbero = async (req, res) => {
     const nuevoBarbero = await prisma.barbero.create({
       data: { 
         nombre, 
-        horarioLaboral: horarioLaboral || "09:00 - 18:00" // Horario por defecto si no lo envían
+        horarioLaboral: horarioLaboral || "09:00 - 18:00", // Horario por defecto si no lo envían
+        imagen: imagen || null
       }
     });
     
