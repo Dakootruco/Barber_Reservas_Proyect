@@ -57,7 +57,8 @@ export default function Signup() {
             <div className="relative z-10 w-full max-w-md p-8 sm:p-10 backdrop-blur-md bg-[#1a1e2d]/80 border border-white/10 rounded-3xl shadow-2xl mx-4">
                 <div className="text-center mb-8">
                     <h1 className="text-4xl font-bold leading-tight text-[#CFAE79] tracking-widest drop-shadow-lg">
-                        Registrate
+                        Dakoo
+                        Barbershop
                     </h1>
                     <p className="text-gray-300 text-sm mt-2 tracking-wide font-light">Crea tu cuenta</p>
                 </div>
@@ -85,6 +86,17 @@ export default function Signup() {
                             className="w-full bg-black/40 border border-white/10 text-white px-4 py-3.5 rounded-xl focus:outline-none focus:border-[#CFAE79] focus:ring-1 focus:ring-[#CFAE79] transition-all placeholder:text-gray-500"
                             type="email"
                             placeholder="Ej: usuario@correo.com"
+                        />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-medium text-gray-300 ml-1">Telefono</label>
+                        <input
+                            name="telefono"
+                            value={formData.telefono}
+                            onChange={handleChange}
+                            className="w-full bg-black/40 border border-white/10 text-white px-4 py-3.5 rounded-xl focus:outline-none focus:border-[#CFAE79] focus:ring-1 focus:ring-[#CFAE79] transition-all placeholder:text-gray-500"
+                            type="number"
+                            placeholder="Ej: 809-000-0000"
                         />
                     </div>
 

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { 
   obtenerServicios, 
+  crearServicio,
   crearReservaPrueba,
   registrarCliente,
   loginCliente,
@@ -8,10 +9,13 @@ import {
   obtenerClientePorId,
   actualizarCliente,
   eliminarCliente,
-  crearReserva
+  crearReserva,
+  obtenerMisReservas,
+  actualizarMiPerfil
 } from '../controllers/cliente.controller.js';
 
 import { obtenerBarberos, crearBarbero } from '../controllers/barbero.controller.js';
+import { verificarToken } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
@@ -28,6 +32,7 @@ router.post('/login', loginCliente);
 // ==========================================
 //localhost:3000/api/cliente/servicios
 router.get('/servicios', obtenerServicios);
+router.post('/servicios', crearServicio);
 //localhost:3000/api/cliente/barberos
 router.get('/barberos', obtenerBarberos);
 router.post('/barberos', crearBarbero);
@@ -35,6 +40,11 @@ router.post('/barberos', crearBarbero);
 // Tarea #13: Algoritmo de Creación de Reservas reales
 // POST http://localhost:3000/api/cliente/reservas
 router.post('/reservas', crearReserva);
+// GET http://localhost:3000/api/cliente/reservas/mis-citas
+router.get('/reservas/mis-citas', verificarToken, obtenerMisReservas);
+
+// PUT http://localhost:3000/api/cliente/mi-perfil
+router.put('/mi-perfil', verificarToken, actualizarMiPerfil);
 
 // Ruta de tipo GET solo para que el usuario pueda probarla haciendo clic desde el navegador
 router.get('/reserva-prueba', crearReservaPrueba);

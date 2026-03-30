@@ -10,6 +10,10 @@ export default function Home() {
 
   // Variable temporal de imagen (hasta que tengas la real del backend)
   const img = null;
+  
+  // Extraer el nombre del usuario desde la sesión
+  const userInfoInfo = localStorage.getItem('user_info');
+  const userName = userInfoInfo ? JSON.parse(userInfoInfo).nombre : "Invitado";
 
   useEffect(() => {
     // Función para obtener los barberos reales desde el backend
@@ -38,7 +42,7 @@ export default function Home() {
       <div className="flex justify-between items-start mb-8">
         <div>
           <h1 className="text-[34px] font-medium leading-tight text-gray-200 tracking-wide">Hola,</h1>
-          <h1 className="text-[34px] font-bold leading-tight text-[#CFAE79] tracking-wide">Dacarlos</h1>
+          <h1 className="text-[34px] font-bold leading-tight text-[#CFAE79] tracking-wide">{userName}</h1>
         </div>
 
         <a href="/perfil" className="hover:cursor-pointer">

@@ -14,6 +14,34 @@ export const obtenerServicios = async (req, res) => {
   }
 };
 
+export const crearServicio = async (req, res) => {
+  try {
+    const { nombre, descripcion, precio, duracion, imagen } = req.body;
+    
+    if (!nombre || precio === undefined || !duracion) {
+      return res.status(400).json({ error: "Nombre, precio y duración son obligatorios" });
+    }
+
+    const nuevoServicio = await prisma.servicio.create({
+      data: { 
+        nombre, 
+        descripcion: descripcion || null,
+        precio: parseFloat(precio), 
+        duracion: parseInt(duracion),
+        imagen: imagen || null
+      }
+    });
+    
+    res.status(201).json({
+      mensaje: "¡Servicio registrado con éxito!",
+      servicio: nuevoServicio
+    });
+  } catch (error) {
+    console.error("Error al registrar servicio:", error);
+    res.status(500).json({ error: "Error interno al intentar guardar el servicio" });
+  }
+};
+
 export const crearReservaPrueba = async (req, res) => {
   try {
     // 1. Buscamos o creamos un Cliente de prueba
@@ -208,6 +236,54 @@ export const eliminarCliente = async (req, res) => {
 // ==========================================
 // SISTEMA DE RESERVAS (VISTA CLIENTE / ALGORITMO)
 // ==========================================
+
+export const actualizarMiPerfil = async (req, res) => {
+  try {
+    const clienteId = req.usuario.id;
+    const { nombre, telefono } = req.body;
+    
+    const clienteActualizado = await prisma.cliente.update({
+      where: { id: clienteId },
+      data: { nombre, telefono }
+    });
+    
+    res.json({
+      mensaje: "Perfil actualizado correctamente",
+      cliente: {
+        id: clienteActualizado.id,
+        nombre: clienteActualizado.nombre,
+        email: clienteActualizado.email,
+        telefono: clienteActualizado.telefono
+      }
+    });
+  } catch (error) {
+    console.error("Error al actualizar perfil:", error);
+    res.status(500).json({ error: "Error interno al actualizar el perfil." });
+  }
+};
+
+export const obtenerMisReservas = async (req, res) => {
+  try {
+    const clienteId = req.usuario.id;
+    const misReservas = await prisma.reserva.findMany({
+      where: {
+        clienteId: clienteId,
+        estado: { in: ['PENDIENTE', 'CONFIRMADA'] },
+        // Filtrar citas cuya fecha sea mayor a este mismo instante
+        fechaHora: { gte: new Date() }
+      },
+      orderBy: { fechaHora: 'asc' },
+      include: {
+        barbero: true,
+        servicio: true
+      }
+    });
+    res.json(misReservas);
+  } catch (error) {
+    console.error("Error obteniendo mis reservas:", error);
+    res.status(500).json({ error: "Error interno al obtener las reservas." });
+  }
+};
 
 export const crearReserva = async (req, res) => {
   try {
