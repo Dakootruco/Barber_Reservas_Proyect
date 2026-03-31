@@ -142,8 +142,10 @@ export const loginCliente = async (req, res) => {
 
     // Verificar si el cliente existe
     const cliente = await prisma.cliente.findUnique({ where: { email } });
-    if (!cliente) {
-      return res.status(401).json({ error: "Credenciales inválidas" });
+    
+    // Si no existe o si es un usuario antiguo sin contraseña
+    if (!cliente || !cliente.password) {
+      return res.status(401).json({ error: "Credenciales inválidas o tu cuenta es tan antigua que no tiene contraseña. Por favor regístrate de nuevo." });
     }
 
     // Verificar contraseña

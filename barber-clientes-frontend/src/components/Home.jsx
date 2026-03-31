@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import Reserv_Card from '../components_ui/Reserv_Card';
 import Barbers from '../components_ui/barbers';
-import { FaUser } from "react-icons/fa";
-
 
 export default function Home() {
   const [barberos, setBarberos] = useState([]);
@@ -10,7 +8,7 @@ export default function Home() {
 
   // Variable temporal de imagen (hasta que tengas la real del backend)
   const img = null;
-  
+
   // Extraer el nombre del usuario desde la sesión
   const userInfoInfo = localStorage.getItem('user_info');
   const userName = userInfoInfo ? JSON.parse(userInfoInfo).nombre : "Invitado";
@@ -48,7 +46,7 @@ export default function Home() {
         <a href="/perfil" className="hover:cursor-pointer">
           {img == null ? (
             <div className="w-[52px] h-[52px] rounded-full bg-[#ffffff] flex items-center justify-center border border-gray-600 shadow-inner">
-              <FaUser className="text-2xl text-gray-400" />
+              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="gray" className="icon icon-tabler icons-tabler-filled icon-tabler-user"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M12 2a5 5 0 1 1 -5 5l.005 -.217a5 5 0 0 1 4.995 -4.783z" /><path d="M14 14a5 5 0 0 1 5 5v1a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-1a5 5 0 0 1 5 -5h4z" /></svg>
             </div>
           ) : (
             <img
@@ -68,6 +66,7 @@ export default function Home() {
       {/* BARBERS SECTION */}
       <div className="flex justify-between items-center mb-5">
         <h2 className="text-xl font-bold text-zinc-100 tracking-wide">Nuestros Barberos</h2>
+        <button className="text-[#CFAE79] text-[15px] pr-1">Ver todos</button>
       </div>
       <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
         {loading ? (

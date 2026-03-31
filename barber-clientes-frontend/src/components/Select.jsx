@@ -169,8 +169,20 @@ export default function Select() {
                             }}
                             className={`flex flex-col items-center min-w-[80px] cursor-pointer transition-all duration-300 ${selectedBarber === barber.id ? 'scale-110' : 'scale-100 opacity-70 hover:opacity-100'}`}
                         >
-                            <div className={`w-[76px] h-[76px] rounded-full p-1 border-2 mb-2 overflow-hidden bg-[#2A2A3A] transition-colors ${selectedBarber === barber.id ? 'border-[#CFAE79]' : 'border-transparent'}`}>
-                                <img src={barber.imagen} alt={barber.nombre} className="w-full h-full rounded-full object-cover" />
+                            <div className={`w-[76px] h-[76px] rounded-full p-1 border-2 mb-2 overflow-hidden bg-[#2A2A3A] flex items-center justify-center transition-colors ${selectedBarber === barber.id ? 'border-[#CFAE79]' : 'border-transparent'}`}>
+                                {barber.imagen ? (
+                                    <img src={barber.imagen} alt={barber.nombre} className="w-full h-full rounded-full object-cover" />
+                                ) : (
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#CFAE79" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-80">
+                                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                      <path d="M8 3v2" />
+                                      <path d="M12 3v2" />
+                                      <path d="M16 3v2" />
+                                      <path d="M9 12v6a3 3 0 0 0 6 0v-6h-6" />
+                                      <path d="M8 5h8l-1 4h-6l-1 -4" />
+                                      <path d="M12 17v1" />
+                                    </svg>
+                                )}
                             </div>
                             <span className={`text-[14px] font-semibold ${selectedBarber === barber.id ? 'text-[#CFAE79]' : 'text-gray-300'}`}>{barber.nombre}</span>
                         </div>
