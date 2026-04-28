@@ -1,5 +1,14 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import AdminLayout from './layouts/AdminLayout';
+import Dashboard from './components/Dashboard';
+import Clientes from './components/Clientes';
+import Barbers from './components/Barbers';
+import Citas from './components/Citas';
+import Servicios from './components/Servicios';
+import Inventario from './components/Inventario';
+import Finanzas from './components/Finanzas';
+import ReportesAnaliticas from './components/Reportes_Analiticas';
+import Configuracion from './components/Configuracion';
 import './App.css';
 
 // Placeholder Component for unbuilt pages
@@ -17,15 +26,15 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<AdminLayout />}>
-          <Route index element={<Placeholder title="Dashboard" />} />
-          <Route path="clientes" element={<Placeholder title="Clientes" />} />
-          <Route path="barberos" element={<Placeholder title="Barberos" />} />
-          <Route path="citas" element={<Placeholder title="Citas" />} />
-          <Route path="servicios" element={<Placeholder title="Servicios" />} />
-          <Route path="inventario" element={<Placeholder title="Inventario" />} />
-          <Route path="finanzas" element={<Placeholder title="Finanzas" />} />
-          <Route path="reportes" element={<Placeholder title="Reportes / Analíticas" />} />
-          <Route path="configuracion" element={<Placeholder title="Configuración" />} />
+          <Route index element={<Dashboard />} />
+          <Route path="citas" element={<Citas />} />
+          <Route path="clientes" element={<Clientes />} />
+          <Route path="barberos" element={<Barbers />} />
+          <Route path="servicios" element={<Servicios />} />
+          <Route path="inventario" element={<Inventario />} />
+          <Route path="finanzas" element={<Finanzas />} />
+          <Route path="reportes" element={<ReportesAnaliticas />} />
+          <Route path="configuracion" element={<Configuracion />} />
         </Route>
       </Routes>
     </BrowserRouter>

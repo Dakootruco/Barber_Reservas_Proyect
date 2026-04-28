@@ -7,6 +7,11 @@ const navItems = [
     icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M10 13a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M13.45 11.55l2.05 -2.05" /><path d="M6.4 20a9 9 0 1 1 11.2 0l-11.2 0" /></svg>
   },
   {
+    name: 'Citas',
+    path: '/citas',
+    icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12" /><path d="M16 3v4" /><path d="M8 3v4" /><path d="M4 11h16" /><path d="M11 15h1" /><path d="M12 15v3" /></svg>
+  },
+  {
     name: 'Clientes',
     path: '/clientes',
     icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" /><path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" /></svg>
@@ -15,11 +20,6 @@ const navItems = [
     name: 'Barberos',
     path: '/barberos',
     icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M8 3v2" /><path d="M12 3v2" /><path d="M16 3v2" /><path d="M9 12v6a3 3 0 0 0 6 0v-6h-6" /><path d="M8 5h8l-1 4h-6l-1 -4" /><path d="M12 17v1" /></svg>
-  },
-  {
-    name: 'Citas',
-    path: '/citas',
-    icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12" /><path d="M16 3v4" /><path d="M8 3v4" /><path d="M4 11h16" /><path d="M11 15h1" /><path d="M12 15v3" /></svg>
   },
   {
     name: 'Servicios',
@@ -53,14 +53,14 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     <>
       {/* Overlay for mobile */}
       {isOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-20 md:hidden transition-opacity"
           onClick={() => setIsOpen(false)}
         />
       )}
 
       {/* Sidebar Navigation */}
-      <aside 
+      <aside
         className={`fixed md:static inset-y-0 left-0 z-30 w-64 bg-zinc-800 text-white flex flex-col transform transition-transform duration-300 ease-in-out md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <div className="flex items-center justify-between py-6 border-b border-zinc-700 px-6">
@@ -71,7 +71,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             <p className="text-sm text-gray-400 font-medium tracking-widest uppercase mt-1">Admin</p>
           </div>
           {/* Close Button on Mobile */}
-          <button 
+          <button
             className="md:hidden text-gray-400 hover:text-white transition-colors"
             onClick={() => setIsOpen(false)}
           >
@@ -83,14 +83,13 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           <ul className="flex flex-col space-y-2 px-4">
             {navItems.map((item) => (
               <li key={item.name}>
-                <NavLink 
-                  to={item.path} 
+                <NavLink
+                  to={item.path}
                   onClick={() => setIsOpen(false)}
-                  className={({ isActive }) => 
-                    `flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${
-                      isActive 
-                        ? 'bg-[#CFAE79] text-zinc-900 font-semibold shadow-md' 
-                        : 'text-zinc-300 hover:bg-zinc-700 hover:text-white'
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${isActive
+                      ? 'bg-[#CFAE79] text-zinc-900 font-semibold shadow-md'
+                      : 'text-zinc-300 hover:bg-zinc-700 hover:text-white'
                     }`
                   }
                 >
