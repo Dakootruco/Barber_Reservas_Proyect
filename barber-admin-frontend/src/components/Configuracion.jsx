@@ -22,7 +22,7 @@ export default function Configuracion() {
       <div className="flex flex-col md:flex-row gap-6 mt-2">
         
         {/* Sidebar de Configuración */}
-        <div className="w-full md:w-64 flex-shrink-0">
+        <div className="w-full md:w-64 shrink-0">
           <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 p-2 flex flex-row md:flex-col gap-1 overflow-x-auto">
             <TabButton 
               active={activeTab === 'general'} 

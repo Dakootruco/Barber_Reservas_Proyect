@@ -15,7 +15,7 @@ export const obtenerTodasLasReservasAdmin = async (req, res) => {
     const reservas = await prisma.reserva.findMany({
       include: {
         cliente: {
-          select: { id: true, nombre: true, telefono: true } 
+          select: { id: true, nombre: true, telefono: true }
         },
         barbero: {
           select: { id: true, nombre: true }
@@ -42,9 +42,9 @@ export const actualizarEstadoReserva = async (req, res) => {
     const { estado } = req.body; // El frontend nos envía el nuevo estado ("CONFIRMADA", "CANCELADA", etc.)
 
     // Pequeña validación de seguridad para evitar errores tipográficos del frontend
-    const estadosPermitidos = ["PENDIENTE", "CONFIRMADA", "CANCELADA", "COMPLETADA"];
+    const estadosPermitidos = ["PENDIENTE", "CANCELADA", "COMPLETADA", "NO_LLEGO"];
     if (!estadosPermitidos.includes(estado)) {
-      return res.status(400).json({ error: "Estado no válido. Usa: PENDIENTE, CONFIRMADA, CANCELADA o COMPLETADA" });
+      return res.status(400).json({ error: "Estado no válido. Usa: PENDIENTE, CANCELADA, COMPLETADA o NO_LLEGO" });
     }
 
     // Le decimos a Prisma que busque la reserva por ID y sobrescriba su campo "estado"

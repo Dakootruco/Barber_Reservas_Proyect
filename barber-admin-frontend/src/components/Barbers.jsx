@@ -1,50 +1,77 @@
-import React, { useState } from 'react';
-import { 
-  Search, 
-  Plus, 
-  Edit2, 
-  Trash2, 
-  X, 
-  Users, 
-  Star, 
-  TrendingUp,
-  Clock,
+import React, { useState, useEffect } from 'react';
+import {
+  Search,
+  Plus,
+  Edit2,
+  Trash2,
+  X,
+  Users,
   Calendar,
   CheckCircle2,
   XCircle,
-  Coffee
+  Coffee,
+  Loader2,
+  AlertCircle,
+  Clock
 } from 'lucide-react';
 
-// Datos de prueba iniciales (Mocks)
-const initialBarbers = [
-  { id: 1, name: 'David García', phone: '+1 234-567-0001', status: 'Activo', appointmentsToday: 6, rating: 4.9, earned: '$1,250', avatar: 'DG' },
-  { id: 2, name: 'Andrés Pérez', phone: '+1 234-567-0002', status: 'Activo', appointmentsToday: 5, rating: 4.8, earned: '$1,100', avatar: 'AP' },
-  { id: 3, name: 'Roberto Sánchez', phone: '+1 234-567-0003', status: 'Descanso', appointmentsToday: 0, rating: 4.7, earned: '$950', avatar: 'RS' },
-  { id: 4, name: 'Miguel Torres', phone: '+1 234-567-0004', status: 'Vacaciones', appointmentsToday: 0, rating: 4.5, earned: '$0', avatar: 'MT' },
-];
+const API_BASE = 'http://localhost:3000/api';
+
+// Transforma un barbero de la BD al formato que usa el componente
+function mapBarberoToUi(barbero) {
+  return {
+    id: barbero.id,
+    name: barbero.nombre,
+    schedule: barbero.horarioLaboral || 'Sin definir',
+    appointmentsToday: barbero.citasHoy || 0,
+    avatar: (barbero.nombre || 'NN').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
+    createdAt: barbero.createdAt,
+  };
+}
 
 export default function Barbers() {
-  const [barbers, setBarbers] = useState(initialBarbers);
+  const [barbers, setBarbers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // Estados para modales
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [currentBarber, setCurrentBarber] = useState(null); // null = Crear, object = Editar
   const [barberToDelete, setBarberToDelete] = useState(null);
 
+  // --- FETCH: Obtener barberos desde la BD ---
+  const fetchBarbers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`${API_BASE}/admin/barberos`);
+      if (!response.ok) throw new Error(`Error ${response.status}`);
+      const data = await response.json();
+      setBarbers(data.map(mapBarberoToUi));
+    } catch (err) {
+      console.error('Error al obtener barberos:', err);
+      setError('No se pudieron cargar los barberos. ¿Está el backend corriendo?');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBarbers();
+  }, []);
+
   // Filtrado de barberos
-  const filteredBarbers = barbers.filter(barber => 
-    barber.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    barber.phone.includes(searchTerm)
+  const filteredBarbers = barbers.filter(barber =>
+    barber.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Cálculos de KPIs
   const totalBarbers = barbers.length;
-  const activeBarbers = barbers.filter(b => b.status === 'Activo').length;
-  const bestBarber = [...barbers].sort((a, b) => b.rating - a.rating)[0];
+  const totalCitasHoy = barbers.reduce((acc, curr) => acc + curr.appointmentsToday, 0);
 
-  // Funciones de manejo
+  // Funciones de manejo de modales
   const handleOpenCreateModal = () => {
     setCurrentBarber(null);
     setIsModalOpen(true);
@@ -70,40 +97,90 @@ export default function Barbers() {
     setBarberToDelete(null);
   };
 
-  const handleSaveBarber = (e) => {
+  // --- POST / PUT: Crear o editar barbero en la BD ---
+  const handleSaveBarber = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    const newBarberData = {
-      name: formData.get('name'),
-      phone: formData.get('phone'),
-      status: formData.get('status') || 'Activo',
-      appointmentsToday: currentBarber ? currentBarber.appointmentsToday : 0,
-      rating: currentBarber ? currentBarber.rating : 5.0,
-      earned: currentBarber ? currentBarber.earned : '$0.00',
-      avatar: formData.get('name').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
+    const payload = {
+      nombre: formData.get('name'),
+      horarioLaboral: formData.get('schedule') || '09:00 - 18:00',
     };
 
-    if (currentBarber) {
-      setBarbers(barbers.map(b => b.id === currentBarber.id ? { ...b, ...newBarberData } : b));
-    } else {
-      setBarbers([{ id: Date.now(), ...newBarberData }, ...barbers]);
+    try {
+      let response;
+      if (currentBarber) {
+        // Editar
+        response = await fetch(`${API_BASE}/admin/barberos/${currentBarber.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        // Crear
+        response = await fetch(`${API_BASE}/admin/barberos`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      }
+
+      if (!response.ok) throw new Error('Error al guardar');
+
+      // Recargar la lista desde el server
+      await fetchBarbers();
+      handleCloseModal();
+    } catch (err) {
+      console.error('Error al guardar barbero:', err);
+      alert('Error al guardar el barbero. Intenta de nuevo.');
     }
-    handleCloseModal();
   };
 
-  const handleDeleteBarber = () => {
-    setBarbers(barbers.filter(b => b.id !== barberToDelete.id));
-    handleCloseDeleteModal();
-  };
+  // --- DELETE: Eliminar barbero de la BD ---
+  const handleDeleteBarber = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/admin/barberos/${barberToDelete.id}`, {
+        method: 'DELETE',
+      });
 
-  const getStatusIcon = (status) => {
-    switch(status) {
-      case 'Activo': return <CheckCircle2 size={14} className="text-emerald-500" />;
-      case 'Descanso': return <Coffee size={14} className="text-amber-500" />;
-      case 'Vacaciones': return <Calendar size={14} className="text-blue-500" />;
-      default: return <XCircle size={14} className="text-zinc-400" />;
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Error al eliminar');
+      }
+
+      await fetchBarbers();
+      handleCloseDeleteModal();
+    } catch (err) {
+      console.error('Error al eliminar barbero:', err);
+      alert(err.message || 'Error al eliminar el barbero.');
+      handleCloseDeleteModal();
     }
   };
+
+  // --- RENDER ---
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-4 animate-in fade-in duration-500">
+        <Loader2 size={36} className="text-[#CFAE79] animate-spin" />
+        <p className="text-zinc-500 text-sm">Cargando barberos desde la base de datos...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-4 animate-in fade-in duration-500">
+        <AlertCircle size={36} className="text-red-400" />
+        <p className="text-zinc-700 font-medium">{error}</p>
+        <button
+          onClick={fetchBarbers}
+          className="px-4 py-2 text-sm font-medium text-white bg-[#CFAE79] hover:bg-[#b89965] rounded-lg transition-colors"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-8 relative">
@@ -113,7 +190,7 @@ export default function Barbers() {
           <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Barberos</h1>
           <p className="text-zinc-500 mt-1">Gestiona a tu equipo de profesionales.</p>
         </div>
-        <button 
+        <button
           onClick={handleOpenCreateModal}
           className="bg-[#CFAE79] hover:bg-[#b89965] text-white font-medium rounded-lg text-sm px-5 py-2.5 transition-colors shadow-sm flex items-center gap-2"
         >
@@ -123,24 +200,18 @@ export default function Barbers() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
-        <KpiCard 
-          title="Total en Equipo" 
-          value={`${activeBarbers} / ${totalBarbers}`} 
-          subtitle="Trabajando hoy"
-          icon={<Users size={22} className="text-blue-500" />} 
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+        <KpiCard
+          title="Total en Equipo"
+          value={totalBarbers.toString()}
+          subtitle="Barberos registrados"
+          icon={<Users size={22} className="text-blue-500" />}
         />
-        <KpiCard 
-          title="Barbero Destacado" 
-          value={bestBarber ? bestBarber.name : '-'} 
-          subtitle={bestBarber ? `Calificación: ${bestBarber.rating}` : ''}
-          icon={<Star size={22} className="text-yellow-400" />} 
-        />
-        <KpiCard 
-          title="Citas Asignadas Hoy" 
-          value={barbers.reduce((acc, curr) => acc + curr.appointmentsToday, 0).toString()} 
+        <KpiCard
+          title="Citas Asignadas Hoy"
+          value={totalCitasHoy.toString()}
           subtitle="En todo el equipo"
-          icon={<Calendar size={22} className="text-emerald-500" />} 
+          icon={<Calendar size={22} className="text-emerald-500" />}
         />
       </div>
 
@@ -152,7 +223,7 @@ export default function Barbers() {
           </div>
           <input
             type="text"
-            placeholder="Buscar por nombre o teléfono..."
+            placeholder="Buscar por nombre..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="bg-zinc-50 border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] block w-full pl-10 p-2.5 outline-none transition-all"
@@ -167,11 +238,8 @@ export default function Barbers() {
             <thead className="text-xs text-zinc-500 uppercase bg-zinc-50 border-b border-zinc-100">
               <tr>
                 <th scope="col" className="px-6 py-4 font-medium">Barbero</th>
-                <th scope="col" className="px-6 py-4 font-medium">Teléfono</th>
-                <th scope="col" className="px-6 py-4 font-medium">Estado</th>
+                <th scope="col" className="px-6 py-4 font-medium">Horario</th>
                 <th scope="col" className="px-6 py-4 font-medium text-center">Citas Hoy</th>
-                <th scope="col" className="px-6 py-4 font-medium text-center">Calificación</th>
-                <th scope="col" className="px-6 py-4 font-medium text-right">Generado (Mes)</th>
                 <th scope="col" className="px-6 py-4 font-medium text-right">Acciones</th>
               </tr>
             </thead>
@@ -185,25 +253,15 @@ export default function Barbers() {
                           <div className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-600 font-semibold text-sm border border-zinc-200 shadow-sm">
                             {barber.avatar}
                           </div>
-                          {barber.status === 'Activo' && (
-                             <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></div>
-                          )}
+                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></div>
                         </div>
                         <span className="font-medium text-zinc-900">{barber.name}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-zinc-500">{barber.phone}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5">
-                        {getStatusIcon(barber.status)}
-                        <span className={`text-xs font-medium ${
-                          barber.status === 'Activo' ? 'text-emerald-600' :
-                          barber.status === 'Descanso' ? 'text-amber-600' : 'text-blue-600'
-                        }`}>
-                          {barber.status}
-                        </span>
+                      <div className="flex items-center gap-1.5 text-zinc-500">
+                        <Clock size={14} />
+                        <span>{barber.schedule}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -211,25 +269,16 @@ export default function Barbers() {
                         {barber.appointmentsToday}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <Star size={14} className="text-yellow-400 fill-current" />
-                        <span className="font-semibold text-zinc-800">{barber.rating}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right font-medium text-zinc-800">
-                      {barber.earned}
-                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button 
+                        <button
                           onClick={() => handleOpenEditModal(barber)}
                           className="p-1.5 text-zinc-400 hover:text-blue-500 hover:bg-blue-50 rounded-md transition-colors"
                           title="Editar"
                         >
                           <Edit2 size={16} />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleOpenDeleteModal(barber)}
                           className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
                           title="Eliminar"
@@ -242,8 +291,8 @@ export default function Barbers() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="px-6 py-12 text-center text-zinc-500">
-                    No se encontraron barberos que coincidan con la búsqueda.
+                  <td colSpan="4" className="px-6 py-12 text-center text-zinc-500">
+                    {barbers.length === 0 ? 'No hay barberos registrados en la base de datos.' : 'No se encontraron barberos que coincidan con la búsqueda.'}
                   </td>
                 </tr>
               )}
@@ -268,48 +317,34 @@ export default function Barbers() {
             <form onSubmit={handleSaveBarber} className="p-5 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-zinc-700 mb-1">Nombre Completo</label>
-                <input 
-                  type="text" 
-                  name="name" 
-                  defaultValue={currentBarber?.name || ''} 
+                <input
+                  type="text"
+                  name="name"
+                  defaultValue={currentBarber?.name || ''}
                   required
+                  placeholder="Ej. David García"
                   className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2.5 outline-none"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-1">Teléfono</label>
-                  <input 
-                    type="tel" 
-                    name="phone" 
-                    defaultValue={currentBarber?.phone || ''} 
-                    required
-                    className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2.5 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-1">Estado</label>
-                  <select 
-                    name="status"
-                    defaultValue={currentBarber?.status || 'Activo'}
-                    className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2.5 outline-none"
-                  >
-                    <option value="Activo">Activo</option>
-                    <option value="Descanso">Descanso</option>
-                    <option value="Vacaciones">Vacaciones</option>
-                    <option value="Inactivo">Inactivo</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-1">Horario Laboral</label>
+                <input
+                  type="text"
+                  name="schedule"
+                  defaultValue={currentBarber?.schedule || '09:00 - 18:00'}
+                  placeholder="Ej. 09:00 - 18:00"
+                  className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2.5 outline-none"
+                />
               </div>
               <div className="pt-4 flex justify-end gap-3 border-t border-zinc-100 mt-6">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={handleCloseModal}
                   className="px-4 py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-lg transition-colors"
                 >
                   Cancelar
                 </button>
-                <button 
+                <button
                   type="submit"
                   className="px-4 py-2.5 text-sm font-medium text-white bg-[#CFAE79] hover:bg-[#b89965] rounded-lg transition-colors shadow-sm"
                 >
@@ -331,16 +366,16 @@ export default function Barbers() {
             </div>
             <h2 className="text-xl font-bold text-zinc-900 mb-2">¿Eliminar Barbero?</h2>
             <p className="text-sm text-zinc-500 mb-6">
-              Estás a punto de eliminar a <span className="font-semibold text-zinc-800">{barberToDelete?.name}</span>. Perderás su historial de rendimiento.
+              Estás a punto de eliminar a <span className="font-semibold text-zinc-800">{barberToDelete?.name}</span>. Esta acción no se puede deshacer.
             </p>
             <div className="flex gap-3 w-full">
-              <button 
+              <button
                 onClick={handleCloseDeleteModal}
                 className="flex-1 px-4 py-2.5 text-sm font-medium text-zinc-600 bg-zinc-100 hover:bg-zinc-200 rounded-lg transition-colors"
               >
                 Cancelar
               </button>
-              <button 
+              <button
                 onClick={handleDeleteBarber}
                 className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors shadow-sm"
               >

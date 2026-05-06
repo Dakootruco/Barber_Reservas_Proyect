@@ -1,28 +1,37 @@
-import React, { useState } from 'react';
-import { 
-  Search, 
-  Plus, 
-  X, 
-  Calendar as CalendarIcon, 
-  Clock, 
-  DollarSign, 
-  CheckCircle2, 
+import React, { useState, useEffect } from 'react';
+import {
+  Search,
+  Plus,
+  X,
+  Calendar as CalendarIcon,
+  Clock,
+  DollarSign,
+  CheckCircle2,
   AlertCircle,
   MoreVertical,
   Edit2,
   Trash2,
-  Filter
+  Filter,
+  Loader2
 } from 'lucide-react';
 
-// Datos de prueba iniciales (Mocks)
-const initialAppointments = [
-  { id: 1, time: '10:00 AM', client: 'Carlos Mendoza', service: 'Corte Clásico + Barba', barber: 'David G.', price: '$25.00', status: 'Completada', avatar: 'CM' },
-  { id: 2, time: '10:30 AM', client: 'Luis Torres', service: 'Fade Texturizado', barber: 'Andrés P.', price: '$20.00', status: 'Pendiente', avatar: 'LT' },
-  { id: 3, time: '11:15 AM', client: 'Javier Roca', service: 'Perfilado de Barba', barber: 'David G.', price: '$15.00', status: 'Pendiente', avatar: 'JR' },
-  { id: 4, time: '12:00 PM', client: 'Miguel Ángel', service: 'Corte VIP', barber: 'Roberto S.', price: '$35.00', status: 'Pendiente', avatar: 'MA' },
-  { id: 5, time: '01:00 PM', client: 'Fernando Ruiz', service: 'Corte Clásico', barber: 'Andrés P.', price: '$15.00', status: 'No llegó', avatar: 'FR' },
-  { id: 6, time: '02:30 PM', client: 'Hugo Silva', service: 'Colorimetría', barber: 'David G.', price: '$60.00', status: 'Cancelada', avatar: 'HS' },
-];
+const API_BASE = 'http://localhost:3000/api';
+
+// Mapeo: lo que guarda la BD (MAYÚSCULAS) ↔ lo que muestra la UI (legible)
+const statusDbToUi = {
+  'PENDIENTE': 'Pendiente',
+  'CONFIRMADA': 'Pendiente',  // Confirmada se muestra como Pendiente en el admin
+  'COMPLETADA': 'Completada',
+  'CANCELADA': 'Cancelada',
+  'NO_LLEGO': 'No llegó',
+};
+
+const statusUiToDb = {
+  'Pendiente': 'PENDIENTE',
+  'Completada': 'COMPLETADA',
+  'No llegó': 'NO_LLEGO',
+  'Cancelada': 'CANCELADA',
+};
 
 const statusColors = {
   'Pendiente': 'bg-amber-100 text-amber-700 border-amber-200',
@@ -31,15 +40,55 @@ const statusColors = {
   'Cancelada': 'bg-zinc-100 text-zinc-600 border-zinc-200'
 };
 
+// Transforma una reserva de la BD al formato que usa el componente
+function mapReservaToAppointment(reserva) {
+  const fecha = new Date(reserva.fechaHora);
+  return {
+    id: reserva.id,
+    time: fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase(),
+    date: fecha,
+    client: reserva.cliente?.nombre || 'Sin cliente',
+    service: reserva.servicio?.nombre || 'Sin servicio',
+    barber: reserva.barbero?.nombre || 'Sin barbero',
+    price: `$${(reserva.servicio?.precio || 0).toFixed(2)}`,
+    priceNum: reserva.servicio?.precio || 0,
+    status: statusDbToUi[reserva.estado] || reserva.estado,
+    avatar: (reserva.cliente?.nombre || 'NN').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
+  };
+}
+
 export default function Citas() {
-  const [appointments, setAppointments] = useState(initialAppointments);
+  const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // Estado para el modal de nueva cita
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // --- FETCH: Obtener citas desde la BD ---
+  const fetchAppointments = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`${API_BASE}/admin/reservas`);
+      if (!response.ok) throw new Error(`Error ${response.status}`);
+      const data = await response.json();
+      setAppointments(data.map(mapReservaToAppointment));
+    } catch (err) {
+      console.error('Error al obtener citas:', err);
+      setError('No se pudieron cargar las citas. ¿Está el backend corriendo?');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAppointments();
+  }, []);
+
   // Filtrado
-  const filteredAppointments = appointments.filter(app => 
+  const filteredAppointments = appointments.filter(app =>
     app.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
     app.barber.toLowerCase().includes(searchTerm.toLowerCase()) ||
     app.service.toLowerCase().includes(searchTerm.toLowerCase())
@@ -49,48 +98,70 @@ export default function Citas() {
   const totalToday = appointments.length;
   const completed = appointments.filter(a => a.status === 'Completada').length;
   const pending = appointments.filter(a => a.status === 'Pendiente').length;
-  
+
   // Calcular ingresos (sumar completados + pendientes como estimado)
   const estimatedRevenue = appointments
     .filter(a => a.status === 'Completada' || a.status === 'Pendiente')
-    .reduce((acc, curr) => acc + parseFloat(curr.price.replace('$', '')), 0);
+    .reduce((acc, curr) => acc + curr.priceNum, 0);
 
-  const handleStatusChange = (id, newStatus) => {
-    setAppointments(appointments.map(app => 
-      app.id === id ? { ...app, status: newStatus } : app
-    ));
+  // --- PUT: Actualizar estado de la reserva en la BD ---
+  const handleStatusChange = async (id, newUiStatus) => {
+    const dbStatus = statusUiToDb[newUiStatus];
+
+    // Optimistic update: actualiza la UI inmediatamente
+    setAppointments(prev =>
+      prev.map(app => app.id === id ? { ...app, status: newUiStatus } : app)
+    );
+
+    try {
+      const response = await fetch(`${API_BASE}/admin/reservas/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado: dbStatus }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al actualizar');
+      }
+    } catch (err) {
+      console.error('Error al cambiar estado:', err);
+      // Revertir si falla → recargar del server
+      fetchAppointments();
+    }
   };
 
   const handleSaveAppointment = (e) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
-    const newAppointment = {
-      id: Date.now(),
-      time: formData.get('time'),
-      client: formData.get('client'),
-      service: formData.get('service'),
-      barber: formData.get('barber'),
-      price: '$' + parseFloat(formData.get('price')).toFixed(2),
-      status: 'Pendiente',
-      avatar: formData.get('client').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
-    };
-
-    // Ordenar temporalmente por hora (simplificado para el mock)
-    const newAppointmentsList = [...appointments, newAppointment].sort((a, b) => {
-      // Conversión simple de 12h a 24h para ordenar
-      const parseTime = (timeStr) => {
-        const [time, modifier] = timeStr.split(' ');
-        let [hours, minutes] = time.split(':');
-        if (hours === '12') hours = '00';
-        if (modifier === 'PM') hours = parseInt(hours, 10) + 12;
-        return `${hours}:${minutes}`;
-      };
-      return parseTime(a.time).localeCompare(parseTime(b.time));
-    });
-
-    setAppointments(newAppointmentsList);
+    // TODO: Cuando se conecte el modal a la BD, usar POST /api/cliente/reservas
+    // Por ahora el modal queda como placeholder visual
     setIsModalOpen(false);
   };
+
+  // --- RENDER ---
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-4 animate-in fade-in duration-500">
+        <Loader2 size={36} className="text-[#CFAE79] animate-spin" />
+        <p className="text-zinc-500 text-sm">Cargando citas desde la base de datos...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-4 animate-in fade-in duration-500">
+        <AlertCircle size={36} className="text-red-400" />
+        <p className="text-zinc-700 font-medium">{error}</p>
+        <button
+          onClick={fetchAppointments}
+          className="px-4 py-2 text-sm font-medium text-white bg-[#CFAE79] hover:bg-[#b89965] rounded-lg transition-colors"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-8 relative">
@@ -101,12 +172,12 @@ export default function Citas() {
           <p className="text-zinc-500 mt-1">Gestiona las reservas y estados en tiempo real.</p>
         </div>
         <div className="flex items-center gap-3">
-          <input 
-            type="date" 
+          <input
+            type="date"
             defaultValue={new Date().toISOString().split('T')[0]}
             className="bg-white border border-zinc-200 text-zinc-700 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2.5 shadow-sm outline-none cursor-pointer"
           />
-          <button 
+          <button
             onClick={() => setIsModalOpen(true)}
             className="bg-[#CFAE79] hover:bg-[#b89965] text-white font-medium rounded-lg text-sm px-5 py-2.5 transition-colors shadow-sm flex items-center gap-2"
           >
@@ -118,25 +189,25 @@ export default function Citas() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
-        <KpiCard 
-          title="Total Citas" 
-          value={totalToday.toString()} 
-          icon={<CalendarIcon size={22} className="text-blue-500" />} 
+        <KpiCard
+          title="Total Citas"
+          value={totalToday.toString()}
+          icon={<CalendarIcon size={22} className="text-blue-500" />}
         />
-        <KpiCard 
-          title="Pendientes" 
-          value={pending.toString()} 
-          icon={<Clock size={22} className="text-amber-500" />} 
+        <KpiCard
+          title="Pendientes"
+          value={pending.toString()}
+          icon={<Clock size={22} className="text-amber-500" />}
         />
-        <KpiCard 
-          title="Completadas" 
-          value={completed.toString()} 
-          icon={<CheckCircle2 size={22} className="text-emerald-500" />} 
+        <KpiCard
+          title="Completadas"
+          value={completed.toString()}
+          icon={<CheckCircle2 size={22} className="text-emerald-500" />}
         />
-        <KpiCard 
-          title="Ingresos Est." 
-          value={`$${estimatedRevenue.toFixed(2)}`} 
-          icon={<DollarSign size={22} className="text-[#CFAE79]" />} 
+        <KpiCard
+          title="Ingresos Est."
+          value={`$${estimatedRevenue.toFixed(2)}`}
+          icon={<DollarSign size={22} className="text-[#CFAE79]" />}
         />
       </div>
 
@@ -196,14 +267,14 @@ export default function Citas() {
                     <td className="px-6 py-4 whitespace-nowrap">{app.service}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-zinc-700">{app.barber}</td>
                     <td className="px-6 py-4 whitespace-nowrap font-medium text-zinc-800">{app.price}</td>
-                    
+
                     {/* Selector de Estado Interactivo */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="relative">
                         <select
                           value={app.status}
                           onChange={(e) => handleStatusChange(app.id, e.target.value)}
-                          className={`appearance-none w-full px-3 py-1.5 pr-8 rounded-full text-xs font-medium border outline-none cursor-pointer focus:ring-2 focus:ring-offset-1 focus:ring-[#CFAE79]/50 transition-colors ${statusColors[app.status]}`}
+                          className={`appearance-none w-full px-3 py-1.5 pr-8 rounded-full text-xs font-medium border outline-none cursor-pointer focus:ring-2 focus:ring-offset-1 focus:ring-[#CFAE79]/50 transition-colors ${statusColors[app.status] || 'bg-zinc-100 text-zinc-600 border-zinc-200'}`}
                         >
                           <option value="Pendiente">Pendiente</option>
                           <option value="Completada">Completada</option>
@@ -211,7 +282,7 @@ export default function Citas() {
                           <option value="Cancelada">Cancelada</option>
                         </select>
                         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2">
-                          <svg className={`h-3 w-3 ${statusColors[app.status].split(' ')[1]}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                          <svg className={`h-3 w-3 ${(statusColors[app.status] || '').split(' ')[1] || 'text-zinc-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                         </div>
                       </div>
                     </td>
@@ -231,7 +302,7 @@ export default function Citas() {
               ) : (
                 <tr>
                   <td colSpan="7" className="px-6 py-12 text-center text-zinc-500">
-                    No se encontraron citas en la búsqueda.
+                    {appointments.length === 0 ? 'No hay citas registradas en la base de datos.' : 'No se encontraron citas en la búsqueda.'}
                   </td>
                 </tr>
               )}
@@ -252,76 +323,20 @@ export default function Citas() {
               </button>
             </div>
             <form onSubmit={handleSaveAppointment} className="p-5 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">Cliente</label>
-                <input 
-                  type="text" 
-                  name="client" 
-                  placeholder="Ej. Juan Pérez"
-                  required
-                  className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2.5 outline-none"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-1">Hora</label>
-                  <input 
-                    type="time" 
-                    name="time" 
-                    required
-                    className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2.5 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-1">Barbero</label>
-                  <select 
-                    name="barber"
-                    className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2.5 outline-none"
-                  >
-                    <option>David G.</option>
-                    <option>Andrés P.</option>
-                    <option>Roberto S.</option>
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-1">Servicio</label>
-                  <select 
-                    name="service"
-                    className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2.5 outline-none"
-                  >
-                    <option>Corte Clásico</option>
-                    <option>Fade Texturizado</option>
-                    <option>Perfilado de Barba</option>
-                    <option>Corte + Barba</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-1">Precio ($)</label>
-                  <input 
-                    type="number" 
-                    name="price" 
-                    placeholder="25.00"
-                    step="0.01"
-                    required
-                    className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2.5 outline-none"
-                  />
-                </div>
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <AlertCircle size={32} className="text-amber-400 mb-3" />
+                <p className="text-sm text-zinc-500 max-w-xs">
+                  La creación de citas desde el admin se conectará al sistema de reservas en una próxima fase.
+                  Por ahora, las citas se crean desde el <span className="font-semibold">frontend de clientes</span>.
+                </p>
               </div>
               <div className="pt-4 flex justify-end gap-3 border-t border-zinc-100 mt-6">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setIsModalOpen(false)}
                   className="px-4 py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-lg transition-colors"
                 >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  className="px-4 py-2.5 text-sm font-medium text-white bg-[#CFAE79] hover:bg-[#b89965] rounded-lg transition-colors shadow-sm"
-                >
-                  Agendar Cita
+                  Cerrar
                 </button>
               </div>
             </form>

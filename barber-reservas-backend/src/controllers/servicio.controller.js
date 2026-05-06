@@ -13,8 +13,8 @@ export const crearServicio = async (req, res) => {
       data: { nombre, descripcion, precio, duracion }
     });
     res.status(201).json({
-        mensaje: "¡Servicio creado con éxito!",
-        servicio: nuevoServicio
+      mensaje: "¡Servicio creado con éxito!",
+      servicio: nuevoServicio
     });
   } catch (error) {
     console.error(error);
@@ -35,10 +35,10 @@ export const actualizarServicio = async (req, res) => {
     if (duracion !== undefined) datosDinamicos.duracion = parseInt(duracion);
 
     const servicioActualizado = await prisma.servicio.update({
-        where: { id: parseInt(id) },
-        data: datosDinamicos
+      where: { id: parseInt(id) },
+      data: datosDinamicos
     });
-    
+
     // Cambiamos 201 por 200 (200 OK = Modificación exitosa, 201 Created = Creación exitosa)
     res.status(200).json(servicioActualizado);
   } catch (error) {
@@ -46,3 +46,26 @@ export const actualizarServicio = async (req, res) => {
     res.status(500).json({ error: "Error al actualizar el servicio" });
   }
 };
+
+export const eliminarServicio = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.servicio.delete({
+      where: { id: parseInt(id) }
+    });
+    res.json({ mensaje: "Servicio eliminado correctamente" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error al eliminar el servicio" });
+  }
+}
+
+export const obtenerServiciosAdmin = async (req, res) => {
+  try {
+    const servicios = await prisma.servicio.findMany();
+    res.json(servicios);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error al obtener los servicios" });
+  }
+}

@@ -1,90 +1,147 @@
-import React, { useState } from 'react';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
-  Plus, 
-  X, 
-  Calendar, 
-  ArrowUpRight, 
-  ArrowDownRight,
-  Filter,
-  Download
+import React, { useState, useEffect } from 'react';
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Plus,
+  X,
+  Calendar,
+  Trash2,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   Legend
 } from 'recharts';
 
-// Datos de prueba (Mocks)
-const chartData = [
-  { name: 'Ene', ingresos: 4000, gastos: 2400 },
-  { name: 'Feb', ingresos: 3000, gastos: 1398 },
-  { name: 'Mar', ingresos: 2000, gastos: 9800 },
-  { name: 'Abr', ingresos: 2780, gastos: 3908 },
-  { name: 'May', ingresos: 1890, gastos: 4800 },
-  { name: 'Jun', ingresos: 2390, gastos: 3800 },
-  { name: 'Jul', ingresos: 3490, gastos: 4300 },
-];
+const API_BASE = 'http://localhost:3000/api';
 
-const initialTransactions = [
-  { id: 1, date: '2026-04-28', description: 'Cortes y Servicios (Día)', category: 'Servicios', type: 'Ingreso', amount: 450.00 },
-  { id: 2, date: '2026-04-27', description: 'Compra de Insumos (Pomadas)', category: 'Inventario', type: 'Gasto', amount: 120.00 },
-  { id: 3, date: '2026-04-26', description: 'Cortes y Servicios (Día)', category: 'Servicios', type: 'Ingreso', amount: 520.00 },
-  { id: 4, date: '2026-04-25', description: 'Pago de Electricidad', category: 'Servicios Básicos', type: 'Gasto', amount: 85.00 },
-  { id: 5, date: '2026-04-24', description: 'Venta de Productos (Caja)', category: 'Productos', type: 'Ingreso', amount: 95.00 },
-  { id: 6, date: '2026-04-23', description: 'Alquiler Local (Abril)', category: 'Alquiler', type: 'Gasto', amount: 800.00 },
-];
+function mapTransaccionToUi(t) {
+  return {
+    id: t.id,
+    date: new Date(t.fecha).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }),
+    rawDate: t.fecha,
+    description: t.descripcion,
+    category: t.categoria,
+    type: t.tipo === 'INGRESO' ? 'Ingreso' : 'Gasto',
+    dbType: t.tipo,
+    amount: t.monto,
+  };
+}
 
 export default function Finanzas() {
-  const [transactions, setTransactions] = useState(initialTransactions);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [transactionType, setTransactionType] = useState('Ingreso'); // 'Ingreso' o 'Gasto'
+  const [transactionType, setTransactionType] = useState('Ingreso');
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [transactionToDelete, setTransactionToDelete] = useState(null);
 
-  // Cálculos de KPIs
-  const totalIncome = transactions
-    .filter(t => t.type === 'Ingreso')
-    .reduce((acc, curr) => acc + curr.amount, 0);
-    
-  const totalExpense = transactions
-    .filter(t => t.type === 'Gasto')
-    .reduce((acc, curr) => acc + curr.amount, 0);
-    
+  const fetchTransactions = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`${API_BASE}/admin/transacciones`);
+      if (!response.ok) throw new Error(`Error ${response.status}`);
+      const data = await response.json();
+      setTransactions(data.map(mapTransaccionToUi));
+    } catch (err) {
+      console.error('Error al obtener transacciones:', err);
+      setError('No se pudieron cargar las transacciones.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTransactions();
+  }, []);
+
+  // KPIs
+  const totalIncome = transactions.filter(t => t.type === 'Ingreso').reduce((acc, curr) => acc + curr.amount, 0);
+  const totalExpense = transactions.filter(t => t.type === 'Gasto').reduce((acc, curr) => acc + curr.amount, 0);
   const netProfit = totalIncome - totalExpense;
 
-  // Funciones de manejo
-  const handleOpenModal = (type) => {
-    setTransactionType(type);
-    setIsModalOpen(true);
-  };
+  // Chart: agrupar por mes
+  const monthlyData = {};
+  transactions.forEach(t => {
+    const fecha = new Date(t.rawDate);
+    const mesKey = fecha.toLocaleDateString('es-ES', { month: 'short' });
+    if (!monthlyData[mesKey]) monthlyData[mesKey] = { name: mesKey, ingresos: 0, gastos: 0 };
+    if (t.type === 'Ingreso') monthlyData[mesKey].ingresos += t.amount;
+    else monthlyData[mesKey].gastos += t.amount;
+  });
+  const chartData = Object.values(monthlyData);
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-  };
+  const handleOpenModal = (type) => { setTransactionType(type); setIsModalOpen(true); };
+  const handleCloseModal = () => setIsModalOpen(false);
 
-  const handleSaveTransaction = (e) => {
+  const handleSaveTransaction = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    const newTransaction = {
-      id: Date.now(),
-      date: formData.get('date'),
-      description: formData.get('description'),
-      category: formData.get('category'),
-      type: formData.get('type'),
-      amount: parseFloat(formData.get('amount')),
+    const payload = {
+      fecha: formData.get('date'),
+      descripcion: formData.get('description'),
+      categoria: formData.get('category'),
+      tipo: formData.get('type') === 'Ingreso' ? 'INGRESO' : 'GASTO',
+      monto: parseFloat(formData.get('amount')),
     };
 
-    // Agregar y ordenar por fecha (más reciente primero)
-    const newTransactionsList = [newTransaction, ...transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
-    setTransactions(newTransactionsList);
-    setIsModalOpen(false);
+    try {
+      const response = await fetch(`${API_BASE}/admin/transacciones`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw new Error('Error al guardar');
+      await fetchTransactions();
+      handleCloseModal();
+    } catch (err) {
+      console.error('Error al guardar transacción:', err);
+      alert('Error al guardar la transacción.');
+    }
   };
+
+  const handleDeleteTransaction = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/admin/transacciones/${transactionToDelete.id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Error al eliminar');
+      await fetchTransactions();
+      setIsDeleteModalOpen(false);
+      setTransactionToDelete(null);
+    } catch (err) {
+      console.error('Error al eliminar transacción:', err);
+      alert('Error al eliminar la transacción.');
+      setIsDeleteModalOpen(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-4 animate-in fade-in duration-500">
+        <Loader2 size={36} className="text-[#CFAE79] animate-spin" />
+        <p className="text-zinc-500 text-sm">Cargando transacciones...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-4 animate-in fade-in duration-500">
+        <AlertCircle size={36} className="text-red-400" />
+        <p className="text-zinc-700 font-medium">{error}</p>
+        <button onClick={fetchTransactions} className="px-4 py-2 text-sm font-medium text-white bg-[#CFAE79] hover:bg-[#b89965] rounded-lg transition-colors">Reintentar</button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-8 relative">
@@ -95,262 +152,152 @@ export default function Finanzas() {
           <p className="text-zinc-500 mt-1">Control de ingresos, gastos y rentabilidad de la barbería.</p>
         </div>
         <div className="flex gap-3 w-full sm:w-auto">
-          <button 
-            onClick={() => handleOpenModal('Gasto')}
-            className="flex-1 sm:flex-none bg-white border border-zinc-200 hover:bg-zinc-50 text-zinc-700 font-medium rounded-lg text-sm px-4 py-2.5 transition-colors shadow-sm flex items-center justify-center gap-2"
-          >
-            <TrendingDown size={16} className="text-red-500" />
-            <span>Registrar Gasto</span>
+          <button onClick={() => handleOpenModal('Gasto')} className="flex-1 sm:flex-none bg-white border border-zinc-200 hover:bg-zinc-50 text-zinc-700 font-medium rounded-lg text-sm px-4 py-2.5 transition-colors shadow-sm flex items-center justify-center gap-2">
+            <TrendingDown size={16} />
+            <span>Gasto</span>
           </button>
-          <button 
-            onClick={() => handleOpenModal('Ingreso')}
-            className="flex-1 sm:flex-none bg-[#CFAE79] hover:bg-[#b89965] text-white font-medium rounded-lg text-sm px-4 py-2.5 transition-colors shadow-sm flex items-center justify-center gap-2"
-          >
-            <TrendingUp size={16} />
-            <span>Nuevo Ingreso</span>
+          <button onClick={() => handleOpenModal('Ingreso')} className="flex-1 sm:flex-none bg-[#CFAE79] hover:bg-[#b89965] text-white font-medium rounded-lg text-sm px-4 py-2.5 transition-colors shadow-sm flex items-center justify-center gap-2">
+            <Plus size={16} />
+            <span>Ingreso</span>
           </button>
         </div>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
-        <KpiCard 
-          title="Ingresos Totales (Mes)" 
-          value={`$${totalIncome.toFixed(2)}`} 
-          icon={<TrendingUp size={22} className="text-emerald-500" />} 
-          trend="+12.5%"
-          isPositive={true}
-        />
-        <KpiCard 
-          title="Gastos Totales (Mes)" 
-          value={`$${totalExpense.toFixed(2)}`} 
-          icon={<TrendingDown size={22} className="text-red-500" />} 
-          trend="-2.4%"
-          isPositive={true} // Es positivo que los gastos bajen
-        />
-        <KpiCard 
-          title="Beneficio Neto" 
-          value={`$${netProfit.toFixed(2)}`} 
-          icon={<DollarSign size={22} className="text-[#CFAE79]" />} 
-          trend="+18.2%"
-          isPositive={true}
-          highlight={true}
-        />
+        <KpiCard title="Ingresos Totales" value={`$${totalIncome.toFixed(2)}`} icon={<TrendingUp size={22} className="text-emerald-500" />} />
+        <KpiCard title="Gastos Totales" value={`$${totalExpense.toFixed(2)}`} icon={<TrendingDown size={22} className="text-red-500" />} />
+        <KpiCard title="Ganancia Neta" value={`$${netProfit.toFixed(2)}`} isHighlight={netProfit >= 0} icon={<DollarSign size={22} className={netProfit >= 0 ? 'text-emerald-500' : 'text-red-500'} />} />
       </div>
 
-      {/* Gráfico y Analíticas */}
-      <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 p-6">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h2 className="text-lg font-semibold text-zinc-800">Flujo de Caja Anual</h2>
-            <p className="text-sm text-zinc-500">Comparativa mensual de ingresos vs gastos</p>
+      {/* Chart */}
+      {chartData.length > 0 && (
+        <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 p-6">
+          <h2 className="text-lg font-semibold text-zinc-800 mb-4">Ingresos vs Gastos por Mes</h2>
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f5" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#a1a1aa', fontSize: 12 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#a1a1aa', fontSize: 12 }} />
+                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                <Legend />
+                <Bar dataKey="ingresos" name="Ingresos" fill="#CFAE79" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="gastos" name="Gastos" fill="#ef4444" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-          <select className="bg-zinc-50 border border-zinc-200 text-zinc-700 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2 outline-none">
-            <option>2026</option>
-            <option>2025</option>
-          </select>
         </div>
-        <div className="h-[350px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={chartData}
-              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f5" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#a1a1aa', fontSize: 12}} dy={10} />
-              <YAxis axisLine={false} tickLine={false} tick={{fill: '#a1a1aa', fontSize: 12}} dx={-10} tickFormatter={(value) => `$${value}`} />
-              <Tooltip 
-                cursor={{fill: '#f4f4f5', opacity: 0.4}}
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}
-                itemStyle={{ fontWeight: 500 }}
-              />
-              <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
-              <Bar dataKey="ingresos" name="Ingresos" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
-              <Bar dataKey="gastos" name="Gastos" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={40} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+      )}
 
-      {/* Historial de Transacciones */}
-      <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 overflow-hidden mt-2">
-        <div className="p-5 border-b border-zinc-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h2 className="text-lg font-semibold text-zinc-800">Historial de Movimientos</h2>
-            <p className="text-sm text-zinc-500">Últimas transacciones registradas</p>
-          </div>
-          <div className="flex gap-2 w-full sm:w-auto">
-            <button className="flex-1 sm:flex-none items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-zinc-600 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 transition-colors">
-              <Filter size={16} />
-              Filtrar
-            </button>
-            <button className="flex-1 sm:flex-none items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-zinc-600 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 transition-colors">
-              <Download size={16} />
-              Exportar
-            </button>
-          </div>
+      {/* Transaction Table */}
+      <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 overflow-hidden">
+        <div className="p-6 border-b border-zinc-100">
+          <h2 className="text-lg font-semibold text-zinc-800">Historial de Transacciones</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-zinc-600">
             <thead className="text-xs text-zinc-500 uppercase bg-zinc-50 border-b border-zinc-100">
               <tr>
-                <th scope="col" className="px-6 py-4 font-medium">Fecha</th>
-                <th scope="col" className="px-6 py-4 font-medium">Descripción</th>
-                <th scope="col" className="px-6 py-4 font-medium">Categoría</th>
-                <th scope="col" className="px-6 py-4 font-medium">Tipo</th>
-                <th scope="col" className="px-6 py-4 font-medium text-right">Monto</th>
+                <th className="px-6 py-4 font-medium">Fecha</th>
+                <th className="px-6 py-4 font-medium">Descripción</th>
+                <th className="px-6 py-4 font-medium">Categoría</th>
+                <th className="px-6 py-4 font-medium">Tipo</th>
+                <th className="px-6 py-4 font-medium text-right">Monto</th>
+                <th className="px-6 py-4 font-medium text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {transactions.length > 0 ? (
-                transactions.map((t) => (
-                  <tr key={t.id} className="hover:bg-zinc-50 transition-colors group">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5 text-zinc-500">
-                        <Calendar size={14} />
-                        {t.date}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="font-medium text-zinc-900">{t.description}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2.5 py-1 bg-zinc-100 text-zinc-600 rounded-lg text-xs font-medium">
-                        {t.category}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`flex items-center gap-1 text-xs font-medium ${
-                        t.type === 'Ingreso' ? 'text-emerald-600' : 'text-red-600'
-                      }`}>
-                        {t.type === 'Ingreso' ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-                        {t.type}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right font-semibold">
-                      <span className={t.type === 'Ingreso' ? 'text-emerald-600' : 'text-zinc-900'}>
-                        {t.type === 'Ingreso' ? '+' : '-'}${t.amount.toFixed(2)}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="5" className="px-6 py-12 text-center text-zinc-500">
-                    No hay movimientos registrados.
+              {transactions.length > 0 ? transactions.map(t => (
+                <tr key={t.id} className="hover:bg-zinc-50 transition-colors group">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-1.5 text-zinc-500"><Calendar size={14} /><span>{t.date}</span></div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap font-medium text-zinc-900">{t.description}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="px-2.5 py-1 bg-zinc-100 text-zinc-600 rounded-lg text-xs font-medium">{t.category}</span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${t.type === 'Ingreso' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>{t.type}</span>
+                  </td>
+                  <td className={`px-6 py-4 whitespace-nowrap text-right font-semibold ${t.type === 'Ingreso' ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {t.type === 'Ingreso' ? '+' : '-'}${t.amount.toFixed(2)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <button onClick={() => { setTransactionToDelete(t); setIsDeleteModalOpen(true); }}
+                      className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors opacity-0 group-hover:opacity-100" title="Eliminar">
+                      <Trash2 size={16} />
+                    </button>
                   </td>
                 </tr>
+              )) : (
+                <tr><td colSpan="6" className="px-6 py-12 text-center text-zinc-500">No hay transacciones registradas.</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Modal Nuevo Movimiento */}
+      {/* Modal Crear Transacción */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleCloseModal}></div>
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className={`flex justify-between items-center p-5 border-b border-zinc-100 ${
-              transactionType === 'Ingreso' ? 'bg-emerald-50/50' : 'bg-red-50/50'
-            }`}>
-              <div className="flex items-center gap-2">
-                {transactionType === 'Ingreso' ? (
-                  <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center"><TrendingUp size={16} /></div>
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center"><TrendingDown size={16} /></div>
-                )}
-                <h2 className="text-lg font-semibold text-zinc-800">Registrar {transactionType}</h2>
-              </div>
-              <button onClick={handleCloseModal} className="text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 p-1.5 rounded-full transition-colors">
-                <X size={20} />
-              </button>
+            <div className="flex justify-between items-center p-5 border-b border-zinc-100">
+              <h2 className="text-lg font-semibold text-zinc-800">Nuevo {transactionType}</h2>
+              <button onClick={handleCloseModal} className="text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 p-1.5 rounded-full transition-colors"><X size={20} /></button>
             </div>
-            
             <form onSubmit={handleSaveTransaction} className="p-5 space-y-4">
               <input type="hidden" name="type" value={transactionType} />
-              
               <div>
                 <label className="block text-sm font-medium text-zinc-700 mb-1">Descripción</label>
-                <input 
-                  type="text" 
-                  name="description" 
-                  required
-                  placeholder={transactionType === 'Ingreso' ? 'Ej. Venta de productos' : 'Ej. Pago de luz'}
-                  className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2.5 outline-none"
-                  autoFocus
-                />
+                <input type="text" name="description" required placeholder="Ej. Cortes del día" className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2.5 outline-none" />
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-zinc-700 mb-1">Monto ($)</label>
-                  <input 
-                    type="number" 
-                    name="amount" 
-                    step="0.01"
-                    required
-                    placeholder="0.00"
-                    min="0"
-                    className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2.5 outline-none"
-                  />
+                  <input type="number" name="amount" step="0.01" min="0.01" required placeholder="450.00" className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2.5 outline-none" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-zinc-700 mb-1">Fecha</label>
-                  <input 
-                    type="date" 
-                    name="date" 
-                    required
-                    defaultValue={new Date().toISOString().split('T')[0]}
-                    className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2.5 outline-none"
-                  />
+                  <input type="date" name="date" defaultValue={new Date().toISOString().split('T')[0]} className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2.5 outline-none" />
                 </div>
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-zinc-700 mb-1">Categoría</label>
-                <select 
-                  name="category"
-                  className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2.5 outline-none"
-                >
-                  {transactionType === 'Ingreso' ? (
-                    <>
-                      <option value="Servicios">Servicios (Cortes, etc)</option>
-                      <option value="Productos">Venta de Productos</option>
-                      <option value="Propinas">Propinas</option>
-                      <option value="Otros Ingresos">Otros Ingresos</option>
-                    </>
-                  ) : (
-                    <>
-                      <option value="Inventario">Inventario / Insumos</option>
-                      <option value="Alquiler">Alquiler del Local</option>
-                      <option value="Servicios Básicos">Servicios (Luz, Agua, Internet)</option>
-                      <option value="Nómina">Nómina / Pago a Barberos</option>
-                      <option value="Marketing">Marketing / Publicidad</option>
-                      <option value="Otros Gastos">Otros Gastos</option>
-                    </>
-                  )}
+                <select name="category" className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2.5 outline-none">
+                  <option value="Servicios">Servicios</option>
+                  <option value="Productos">Productos</option>
+                  <option value="Inventario">Inventario</option>
+                  <option value="Alquiler">Alquiler</option>
+                  <option value="Servicios Básicos">Servicios Básicos</option>
+                  <option value="Nómina">Nómina</option>
+                  <option value="Otros">Otros</option>
                 </select>
               </div>
-
               <div className="pt-4 flex justify-end gap-3 border-t border-zinc-100 mt-6">
-                <button 
-                  type="button" 
-                  onClick={handleCloseModal}
-                  className="px-4 py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-lg transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  className={`px-4 py-2.5 text-sm font-medium text-white rounded-lg transition-colors shadow-sm ${
-                    transactionType === 'Ingreso' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'
-                  }`}
-                >
-                  Guardar {transactionType}
+                <button type="button" onClick={handleCloseModal} className="px-4 py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-lg transition-colors">Cancelar</button>
+                <button type="submit" className={`px-4 py-2.5 text-sm font-medium text-white rounded-lg transition-colors shadow-sm ${transactionType === 'Ingreso' ? 'bg-[#CFAE79] hover:bg-[#b89965]' : 'bg-red-500 hover:bg-red-600'}`}>
+                  Registrar {transactionType}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Eliminar */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsDeleteModalOpen(false)}></div>
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 p-6 text-center">
+            <div className="w-12 h-12 rounded-full bg-red-100 text-red-500 flex items-center justify-center mx-auto mb-4"><Trash2 size={24} /></div>
+            <h2 className="text-xl font-bold text-zinc-900 mb-2">¿Eliminar Transacción?</h2>
+            <p className="text-sm text-zinc-500 mb-6">Estás a punto de eliminar <span className="font-semibold text-zinc-800">{transactionToDelete?.description}</span>.</p>
+            <div className="flex gap-3 w-full">
+              <button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 px-4 py-2.5 text-sm font-medium text-zinc-600 bg-zinc-100 hover:bg-zinc-200 rounded-lg transition-colors">Cancelar</button>
+              <button onClick={handleDeleteTransaction} className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors shadow-sm">Sí, Eliminar</button>
+            </div>
           </div>
         </div>
       )}
@@ -358,28 +305,13 @@ export default function Finanzas() {
   );
 }
 
-// Subcomponente KPI
-function KpiCard({ title, value, icon, trend, isPositive, highlight }) {
+function KpiCard({ title, value, icon, isHighlight }) {
   return (
-    <div className={`rounded-2xl p-5 shadow-sm border flex items-start gap-4 hover:shadow-md transition-shadow duration-300 ${
-      highlight ? 'bg-zinc-900 text-white border-zinc-800' : 'bg-white border-zinc-100'
-    }`}>
-      <div className={`p-3 rounded-xl ${highlight ? 'bg-zinc-800' : 'bg-zinc-50'}`}>
-        {icon}
-      </div>
-      <div className="flex-1">
-        <p className={`text-sm font-medium mt-0.5 ${highlight ? 'text-zinc-400' : 'text-zinc-500'}`}>{title}</p>
-        <div className="flex items-end justify-between mt-1">
-          <p className={`text-2xl font-bold tracking-tight ${highlight ? 'text-white' : 'text-zinc-900'}`}>{value}</p>
-          <div className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg ${
-            isPositive 
-              ? (highlight ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-50 text-emerald-600') 
-              : (highlight ? 'bg-red-500/20 text-red-400' : 'bg-red-50 text-red-600')
-          }`}>
-            {isPositive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-            <span>{trend}</span>
-          </div>
-        </div>
+    <div className="bg-white rounded-2xl p-5 shadow-sm border border-zinc-100 flex items-center gap-4 hover:shadow-md transition-shadow duration-300">
+      <div className="p-3 bg-zinc-50 rounded-xl">{icon}</div>
+      <div>
+        <p className="text-2xl font-bold text-zinc-900 tracking-tight">{value}</p>
+        <h3 className="text-zinc-600 text-sm font-medium mt-0.5">{title}</h3>
       </div>
     </div>
   );

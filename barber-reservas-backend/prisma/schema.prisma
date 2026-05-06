@@ -62,3 +62,24 @@ model Reserva {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
+
+model Producto {
+  id        Int      @id @default(autoincrement())
+  nombre    String
+  categoria String   // Ej: "Pomadas", "Cremas", "Geles", "Navajas"
+  precio    Float    // Precio de venta
+  stock     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Transaccion {
+  id          Int      @id @default(autoincrement())
+  fecha       DateTime
+  descripcion String
+  categoria   String   // Ej: "Servicios", "Inventario", "Alquiler", "Servicios Básicos"
+  tipo        String   // "INGRESO" o "GASTO"
+  monto       Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

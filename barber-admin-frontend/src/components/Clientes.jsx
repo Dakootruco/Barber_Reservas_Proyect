@@ -1,45 +1,76 @@
-import React, { useState } from 'react';
-import { 
-  Search, 
-  Plus, 
-  MoreVertical, 
-  Edit2, 
-  Trash2, 
-  X, 
-  Users, 
-  UserCheck, 
+import React, { useState, useEffect } from 'react';
+import {
+  Search,
+  Plus,
+  Edit2,
+  Trash2,
+  X,
+  Users,
   UserPlus,
   Mail,
-  Phone
+  Phone,
+  Loader2,
+  AlertCircle,
+  Calendar
 } from 'lucide-react';
 
-// Datos de prueba iniciales (Mocks)
-const initialClients = [
-  { id: 1, name: 'Carlos Mendoza', phone: '+1 234-567-8900', email: 'carlos.m@email.com', status: 'VIP', lastVisit: 'Hoy', spent: '$450.00', avatar: 'CM' },
-  { id: 2, name: 'Luis Torres', phone: '+1 234-567-8901', email: 'luis.t@email.com', status: 'Frecuente', lastVisit: 'Ayer', spent: '$120.00', avatar: 'LT' },
-  { id: 3, name: 'Javier Roca', phone: '+1 234-567-8902', email: 'javier.r@email.com', status: 'Nuevo', lastVisit: 'Hace 3 días', spent: '$35.00', avatar: 'JR' },
-  { id: 4, name: 'Miguel Ángel', phone: '+1 234-567-8903', email: 'miguel.a@email.com', status: 'VIP', lastVisit: 'Hace 1 semana', spent: '$890.00', avatar: 'MA' },
-  { id: 5, name: 'Roberto Sánchez', phone: '+1 234-567-8904', email: 'roberto.s@email.com', status: 'Frecuente', lastVisit: 'Hace 2 semanas', spent: '$210.00', avatar: 'RS' },
-];
+const API_BASE = 'http://localhost:3000/api';
+
+// Transforma un cliente de la BD al formato que usa el componente
+function mapClienteToUi(cliente) {
+  return {
+    id: cliente.id,
+    name: cliente.nombre,
+    phone: cliente.telefono || 'Sin teléfono',
+    email: cliente.email,
+    avatar: (cliente.nombre || 'NN').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
+    registeredAt: new Date(cliente.createdAt).toLocaleDateString('es-ES', {
+      day: 'numeric', month: 'short', year: 'numeric'
+    }),
+  };
+}
 
 export default function Clientes() {
-  const [clients, setClients] = useState(initialClients);
+  const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // Estados para modales
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [currentClient, setCurrentClient] = useState(null); // null = Crear, object = Editar
   const [clientToDelete, setClientToDelete] = useState(null);
 
+  // --- FETCH: Obtener clientes desde la BD ---
+  const fetchClients = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`${API_BASE}/cliente`);
+      if (!response.ok) throw new Error(`Error ${response.status}`);
+      const data = await response.json();
+      setClients(data.map(mapClienteToUi));
+    } catch (err) {
+      console.error('Error al obtener clientes:', err);
+      setError('No se pudieron cargar los clientes. ¿Está el backend corriendo?');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchClients();
+  }, []);
+
   // Filtrado de clientes
-  const filteredClients = clients.filter(client => 
+  const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     client.phone.includes(searchTerm)
   );
 
-  // Funciones de manejo
+  // Funciones de manejo de modales
   const handleOpenCreateModal = () => {
     setCurrentClient(null);
     setIsModalOpen(true);
@@ -65,33 +96,98 @@ export default function Clientes() {
     setClientToDelete(null);
   };
 
-  const handleSaveClient = (e) => {
+  // --- POST / PUT: Crear o editar cliente en la BD ---
+  const handleSaveClient = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    const newClientData = {
-      name: formData.get('name'),
-      phone: formData.get('phone'),
-      email: formData.get('email'),
-      status: formData.get('status') || 'Nuevo',
-      lastVisit: currentClient ? currentClient.lastVisit : 'Nunca',
-      spent: currentClient ? currentClient.spent : '$0.00',
-      avatar: formData.get('name').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
-    };
 
-    if (currentClient) {
-      // Editar
-      setClients(clients.map(c => c.id === currentClient.id ? { ...c, ...newClientData } : c));
-    } else {
-      // Crear
-      setClients([{ id: Date.now(), ...newClientData }, ...clients]);
+    try {
+      let response;
+      if (currentClient) {
+        // Editar — PUT /api/cliente/:id
+        response = await fetch(`${API_BASE}/cliente/${currentClient.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nombre: formData.get('name'),
+            email: formData.get('email'),
+            telefono: formData.get('phone'),
+          }),
+        });
+      } else {
+        // Crear — POST /api/cliente/register
+        const password = formData.get('password');
+        response = await fetch(`${API_BASE}/cliente/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nombre: formData.get('name'),
+            email: formData.get('email'),
+            telefono: formData.get('phone'),
+            password: password,
+          }),
+        });
+      }
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Error al guardar');
+      }
+
+      await fetchClients();
+      handleCloseModal();
+    } catch (err) {
+      console.error('Error al guardar cliente:', err);
+      alert(err.message || 'Error al guardar el cliente.');
     }
-    handleCloseModal();
   };
 
-  const handleDeleteClient = () => {
-    setClients(clients.filter(c => c.id !== clientToDelete.id));
-    handleCloseDeleteModal();
+  // --- DELETE: Eliminar cliente de la BD ---
+  const handleDeleteClient = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/cliente/${clientToDelete.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Error al eliminar');
+      }
+
+      await fetchClients();
+      handleCloseDeleteModal();
+    } catch (err) {
+      console.error('Error al eliminar cliente:', err);
+      alert(err.message || 'Error al eliminar el cliente. Puede tener reservas asociadas.');
+      handleCloseDeleteModal();
+    }
   };
+
+  // --- RENDER ---
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-4 animate-in fade-in duration-500">
+        <Loader2 size={36} className="text-[#CFAE79] animate-spin" />
+        <p className="text-zinc-500 text-sm">Cargando clientes desde la base de datos...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-4 animate-in fade-in duration-500">
+        <AlertCircle size={36} className="text-red-400" />
+        <p className="text-zinc-700 font-medium">{error}</p>
+        <button
+          onClick={fetchClients}
+          className="px-4 py-2 text-sm font-medium text-white bg-[#CFAE79] hover:bg-[#b89965] rounded-lg transition-colors"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-8 relative">
@@ -101,7 +197,7 @@ export default function Clientes() {
           <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Clientes</h1>
           <p className="text-zinc-500 mt-1">Gestiona la base de datos de tus clientes.</p>
         </div>
-        <button 
+        <button
           onClick={handleOpenCreateModal}
           className="bg-[#CFAE79] hover:bg-[#b89965] text-white font-medium rounded-lg text-sm px-5 py-2.5 transition-colors shadow-sm flex items-center gap-2"
         >
@@ -111,21 +207,20 @@ export default function Clientes() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
-        <KpiCard 
-          title="Total de Clientes" 
-          value={clients.length.toString()} 
-          icon={<Users size={22} className="text-blue-500" />} 
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+        <KpiCard
+          title="Total de Clientes"
+          value={clients.length.toString()}
+          icon={<Users size={22} className="text-blue-500" />}
         />
-        <KpiCard 
-          title="Clientes Activos" 
-          value={clients.filter(c => c.status === 'VIP' || c.status === 'Frecuente').length.toString()} 
-          icon={<UserCheck size={22} className="text-[#CFAE79]" />} 
-        />
-        <KpiCard 
-          title="Nuevos (Este Mes)" 
-          value={clients.filter(c => c.status === 'Nuevo').length.toString()} 
-          icon={<UserPlus size={22} className="text-emerald-500" />} 
+        <KpiCard
+          title="Registrados Este Mes"
+          value={clients.filter(c => {
+            const now = new Date();
+            const registered = new Date(c.registeredAt);
+            return registered.getMonth() === now.getMonth() && registered.getFullYear() === now.getFullYear();
+          }).length.toString()}
+          icon={<UserPlus size={22} className="text-emerald-500" />}
         />
       </div>
 
@@ -143,14 +238,6 @@ export default function Clientes() {
             className="bg-zinc-50 border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] block w-full pl-10 p-2.5 outline-none transition-all"
           />
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <button className="px-4 py-2 text-sm font-medium text-zinc-600 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 transition-colors w-full sm:w-auto">
-            Filtrar
-          </button>
-          <button className="px-4 py-2 text-sm font-medium text-zinc-600 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 transition-colors w-full sm:w-auto">
-            Exportar
-          </button>
-        </div>
       </div>
 
       {/* Tabla de Clientes */}
@@ -161,9 +248,7 @@ export default function Clientes() {
               <tr>
                 <th scope="col" className="px-6 py-4 font-medium">Cliente</th>
                 <th scope="col" className="px-6 py-4 font-medium">Contacto</th>
-                <th scope="col" className="px-6 py-4 font-medium">Estado</th>
-                <th scope="col" className="px-6 py-4 font-medium">Última Visita</th>
-                <th scope="col" className="px-6 py-4 font-medium">Total Gastado</th>
+                <th scope="col" className="px-6 py-4 font-medium">Registrado</th>
                 <th scope="col" className="px-6 py-4 font-medium text-right">Acciones</th>
               </tr>
             </thead>
@@ -192,28 +277,21 @@ export default function Clientes() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
-                        client.status === 'VIP' 
-                          ? 'bg-[#CFAE79]/10 text-[#CFAE79] border-[#CFAE79]/20' 
-                          : client.status === 'Frecuente'
-                            ? 'bg-blue-50 text-blue-600 border-blue-100'
-                            : 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                      }`}>
-                        {client.status}
-                      </span>
+                      <div className="flex items-center gap-1.5 text-zinc-500">
+                        <Calendar size={12} />
+                        <span className="text-xs">{client.registeredAt}</span>
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">{client.lastVisit}</td>
-                    <td className="px-6 py-4 whitespace-nowrap font-medium text-zinc-800">{client.spent}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button 
+                        <button
                           onClick={() => handleOpenEditModal(client)}
                           className="p-1.5 text-zinc-400 hover:text-blue-500 hover:bg-blue-50 rounded-md transition-colors"
                           title="Editar"
                         >
                           <Edit2 size={16} />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleOpenDeleteModal(client)}
                           className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
                           title="Eliminar"
@@ -226,8 +304,8 @@ export default function Clientes() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-zinc-500">
-                    No se encontraron clientes que coincidan con la búsqueda.
+                  <td colSpan="4" className="px-6 py-12 text-center text-zinc-500">
+                    {clients.length === 0 ? 'No hay clientes registrados en la base de datos.' : 'No se encontraron clientes que coincidan con la búsqueda.'}
                   </td>
                 </tr>
               )}
@@ -252,56 +330,60 @@ export default function Clientes() {
             <form onSubmit={handleSaveClient} className="p-5 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-zinc-700 mb-1">Nombre Completo</label>
-                <input 
-                  type="text" 
-                  name="name" 
-                  defaultValue={currentClient?.name || ''} 
+                <input
+                  type="text"
+                  name="name"
+                  defaultValue={currentClient?.name || ''}
                   required
+                  placeholder="Ej. Juan Pérez"
                   className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2.5 outline-none"
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-1">Teléfono</label>
-                  <input 
-                    type="tel" 
-                    name="phone" 
-                    defaultValue={currentClient?.phone || ''} 
-                    required
-                    className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2.5 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-1">Estado</label>
-                  <select 
-                    name="status"
-                    defaultValue={currentClient?.status || 'Nuevo'}
-                    className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2.5 outline-none"
-                  >
-                    <option value="Nuevo">Nuevo</option>
-                    <option value="Frecuente">Frecuente</option>
-                    <option value="VIP">VIP</option>
-                  </select>
-                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-700 mb-1">Correo Electrónico</label>
-                <input 
-                  type="email" 
-                  name="email" 
-                  defaultValue={currentClient?.email || ''} 
+                <input
+                  type="email"
+                  name="email"
+                  defaultValue={currentClient?.email || ''}
+                  required
+                  placeholder="cliente@email.com"
                   className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2.5 outline-none"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-1">Teléfono</label>
+                <input
+                  type="tel"
+                  name="phone"
+                  defaultValue={currentClient?.phone === 'Sin teléfono' ? '' : (currentClient?.phone || '')}
+                  placeholder="+1 234-567-8900"
+                  className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2.5 outline-none"
+                />
+              </div>
+              {/* Solo mostrar campo de contraseña al crear */}
+              {!currentClient && (
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 mb-1">Contraseña</label>
+                  <input
+                    type="password"
+                    name="password"
+                    required
+                    placeholder="Contraseña para el cliente"
+                    minLength={6}
+                    className="w-full bg-white border border-zinc-200 text-zinc-900 text-sm rounded-lg focus:ring-[#CFAE79] focus:border-[#CFAE79] p-2.5 outline-none"
+                  />
+                  <p className="text-xs text-zinc-400 mt-1">Mínimo 6 caracteres. El cliente la usará para iniciar sesión.</p>
+                </div>
+              )}
               <div className="pt-4 flex justify-end gap-3 border-t border-zinc-100 mt-6">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={handleCloseModal}
                   className="px-4 py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-lg transition-colors"
                 >
                   Cancelar
                 </button>
-                <button 
+                <button
                   type="submit"
                   className="px-4 py-2.5 text-sm font-medium text-white bg-[#CFAE79] hover:bg-[#b89965] rounded-lg transition-colors shadow-sm"
                 >
@@ -326,13 +408,13 @@ export default function Clientes() {
               Estás a punto de eliminar a <span className="font-semibold text-zinc-800">{clientToDelete?.name}</span>. Esta acción no se puede deshacer.
             </p>
             <div className="flex gap-3 w-full">
-              <button 
+              <button
                 onClick={handleCloseDeleteModal}
                 className="flex-1 px-4 py-2.5 text-sm font-medium text-zinc-600 bg-zinc-100 hover:bg-zinc-200 rounded-lg transition-colors"
               >
                 Cancelar
               </button>
-              <button 
+              <button
                 onClick={handleDeleteClient}
                 className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors shadow-sm"
               >
