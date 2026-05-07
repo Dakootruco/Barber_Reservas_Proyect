@@ -167,7 +167,8 @@ export const loginCliente = async (req, res) => {
       cliente: {
         id: cliente.id,
         nombre: cliente.nombre,
-        email: cliente.email
+        email: cliente.email,
+        telefono: cliente.telefono
       }
     });
   } catch (error) {

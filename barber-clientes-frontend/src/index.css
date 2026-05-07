@@ -1,1 +1,115 @@
 @import "tailwindcss";
+
+/* 
+  DARK THEME OVERRIDES FOR REACT-CALENDAR 
+*/
+
+.react-calendar {
+  width: 100%;
+  max-width: 100%;
+  background-color: transparent !important;
+  border: none !important;
+  font-family: inherit !important;
+  color: #e5e7eb !important;
+}
+
+/* Header de Navegación (Mes/Año, flechas) */
+.react-calendar__navigation {
+  margin-bottom: 1rem;
+}
+.react-calendar__navigation button {
+  color: #e5e7eb;
+  min-width: 44px;
+  background: transparent;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+}
+.react-calendar__navigation button:disabled {
+  color: #4b5563;
+}
+.react-calendar__navigation button:enabled:hover,
+.react-calendar__navigation button:enabled:focus {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Nombres de los días de la semana */
+.react-calendar__month-view__weekdays {
+  text-transform: uppercase;
+  font-weight: 700;
+  font-size: 0.75em;
+  color: #9ca3af;
+  margin-bottom: 0.5rem;
+}
+.react-calendar__month-view__weekdays__weekday {
+  padding: 0.5em;
+}
+abbr[title] {
+  text-decoration: none;
+}
+
+/* Celdas de los días (Tiles) */
+.react-calendar__tile {
+  background: transparent;
+  color: #d1d5db;
+  border-radius: 0.5rem;
+  padding: 0.75em 0.5em;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+.react-calendar__tile:disabled {
+  color: #4b5563;
+}
+.react-calendar__tile:enabled:hover,
+.react-calendar__tile:enabled:focus {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Días de otros meses */
+.react-calendar__month-view__days__day--neighboringMonth {
+  color: #4b5563;
+}
+
+/* El día de hoy */
+.react-calendar__tile--now {
+  background: rgba(255, 255, 255, 0.05);
+  font-weight: bold;
+}
+.react-calendar__tile--now:enabled:hover,
+.react-calendar__tile--now:enabled:focus {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* El día seleccionado */
+.react-calendar__tile--active,
+.react-calendar__tile--active:enabled:hover,
+.react-calendar__tile--active:enabled:focus {
+  background-color: #CFAE79 !important;
+  color: #000 !important;
+  font-weight: bold;
+}
+
+/* CLASE CUSTOM: Días que tienen una cita programada */
+.react-calendar__tile.dia-con-cita {
+  position: relative;
+  font-weight: bold;
+  color: #CFAE79;
+}
+
+.react-calendar__tile.dia-con-cita::after {
+  content: '';
+  position: absolute;
+  bottom: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  background-color: #CFAE79;
+  border-radius: 50%;
+}
+
+/* Seleccionando un día que tiene cita (evitar que el punto desaparezca visualmente) */
+.react-calendar__tile--active.dia-con-cita::after {
+  background-color: #000;
+}

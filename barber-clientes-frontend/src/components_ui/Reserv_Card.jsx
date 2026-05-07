@@ -4,6 +4,35 @@ import { Link } from 'react-router-dom';
 function Reserv_Card() {
     const [reserva, setReserva] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [isCanceling, setIsCanceling] = useState(false);
+
+    const handleCancelarCita = async () => {
+        const confirmar = window.confirm("¿Estás seguro de que deseas cancelar tu cita?");
+        if (!confirmar) return;
+
+        setIsCanceling(true);
+        try {
+            const endpoint = import.meta.env.PROD 
+                ? `https://barber-reservas-proyect.onrender.com/api/admin/reservas/${reserva.id}`
+                : `http://localhost:3000/api/admin/reservas/${reserva.id}`;
+            
+            const response = await fetch(endpoint, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ estado: 'CANCELADA' })
+            });
+
+            if (!response.ok) throw new Error("No se pudo cancelar la cita. Inténtalo de nuevo.");
+            
+            alert("Cita cancelada con éxito.");
+            // Actualizamos el estado local para que la UI cambie inmediatamente
+            setReserva(prev => ({ ...prev, estado: 'CANCELADA' }));
+        } catch (error) {
+            alert(error.message);
+        } finally {
+            setIsCanceling(false);
+        }
+    };
 
     useEffect(() => {
         const fetchMisReservas = async () => {
@@ -43,7 +72,7 @@ function Reserv_Card() {
         return (
             <div className="bg-[#2A2A3A] text-white p-6 rounded-[28px] shadow-lg w-full max-w-sm mx-auto flex flex-col gap-4 border border-white/5 text-center">
                 <h2 className="text-[19px] font-bold tracking-wide text-gray-200">Aún no tienes reservas</h2>
-                <p className="text-[14px] text-gray-400">¿Qué esperas para agendar tu próximo corte de cabello y lookear?</p>
+                <p className="text-[14px] text-gray-400">¿Qué esperas para agendar tu próximo corte de pelo?</p>
                 <Link to="/agendar" className="bg-[#CFAE79] text-black mt-2 py-3.5 rounded-xl font-bold hover:bg-[#b89b6b] transition-all">
                     Agendar Ahora
                 </Link>
@@ -51,49 +80,92 @@ function Reserv_Card() {
         );
     }
 
-    const dateObj = new Date(reserva.fechaHora);
-    const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    
-    // Obtener las partes
-    const diaSemana = dias[dateObj.getDay()];
-    const diaMes = dateObj.getDate();
-    const mes = meses[dateObj.getMonth()];
-    const horaStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    // Funciones para formatear (iguales a las de Schedule.jsx)
+    const formatearFecha = (fechaString) => {
+        const opcionesFecha = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        const date = new Date(fechaString);
+        const fechaText = date.toLocaleDateString('es-ES', opcionesFecha);
+        return fechaText.charAt(0).toUpperCase() + fechaText.slice(1);
+    };
+
+    const formatearHora = (fechaString) => {
+        const date = new Date(fechaString);
+        return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
+    };
 
     return (
-        <div className="bg-[#2A2A3A] text-white p-5 rounded-[28px] shadow-lg w-full max-w-sm mx-auto flex flex-col gap-5 border border-white/5">
-            <h2 className="text-[17px] font-semibold text-white tracking-wide">Tu Próxima Cita</h2>
-
-            <div className="flex gap-4 items-center">
-                {/* Cuadro de la fecha (Izquierda) */}
-                <div className="bg-[#353545] flex flex-col justify-center items-center rounded-2xl min-w-[72px] h-[78px]">
-                    <span className="text-[11px] text-gray-400 font-medium tracking-wide uppercase">{diaSemana}</span>
-                    <span className="text-2xl font-bold text-white leading-none mt-0.5 mb-1">{diaMes}</span>
-                    <span className="text-[11px] text-[#CFAE79] font-medium tracking-wide uppercase">{mes}</span>
+        <div className="w-full max-w-sm mx-auto">
+            <h2 className="text-[17px] font-semibold text-white tracking-wide mb-3 px-1">Tu Próxima Cita</h2>
+            <div className="bg-[#2A2A3A]/60 border border-white/10 rounded-2xl overflow-hidden shadow-lg backdrop-blur-sm transition-transform hover:scale-[1.01]">
+                
+                {/* Cabecera de la tarjeta (Fecha y Estado) */}
+                <div className="bg-zinc-800/80 px-5 py-3 border-b border-white/5 flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-[#CFAE79]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        <span className="text-sm font-medium text-gray-300">{formatearFecha(reserva.fechaHora)}</span>
+                    </div>
+                    <span className={`text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wide ${
+                        reserva.estado === 'CONFIRMADA' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 
+                        reserva.estado === 'PENDIENTE' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 
+                        'bg-zinc-700 text-gray-300'
+                    }`}>
+                        {reserva.estado}
+                    </span>
                 </div>
 
-                {/* Hora, Barbero y Servicio (Derecha) */}
-                <div className="flex flex-col flex-1 pl-1 gap-2">
-                    <p className="font-medium text-[17px] text-gray-200">Hora: {horaStr}</p>
-                    <p className="text-[13px] text-[#CFAE79] font-semibold -mt-1">{reserva.servicio?.nombre || 'Corte'}</p>
+                {/* Cuerpo de la tarjeta */}
+                <div className="p-5 flex justify-between items-center">
+                    <div className="flex flex-col gap-3">
+                        {/* Servicio */}
+                        <div>
+                            <h3 className="text-xl font-bold text-gray-100 tracking-wide">{reserva.servicio?.nombre || 'Corte'}</h3>
+                            <div className="flex items-center gap-1.5 mt-1">
+                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                <span className="text-sm text-gray-400">{reserva.servicio?.duracion || '30'} min</span>
+                            </div>
+                        </div>
+                        
+                        {/* Barbero */}
+                        <div className="flex items-center gap-2 mt-1">
+                            <div className="w-8 h-8 rounded-full bg-[#151620] border border-[#CFAE79]/50 flex items-center justify-center overflow-hidden">
+                                {reserva.barbero?.imagen ? (
+                                    <img src={reserva.barbero.imagen} alt="Barbero" className="w-full h-full object-cover" />
+                                ) : (
+                                    <svg className="w-5 h-5 text-[#CFAE79]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                )}
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-[10px] text-gray-500 uppercase font-semibold">Barbero</span>
+                                <span className="text-sm font-medium text-gray-300 leading-tight">{reserva.barbero?.nombre || 'Sin asignar'}</span>
+                            </div>
+                        </div>
+                    </div>
 
-                    <div className="flex items-center gap-2 mt-1">
-                        <img
-                            src={reserva.barbero?.imagen || 'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?q=80&w=800&auto=format&fit=crop'}
-                            alt="Barbero"
-                            className="w-7 h-7 rounded-full object-cover"
-                        />
-                        <span className="text-[14px] font-medium text-gray-300">Barbero: {reserva.barbero?.nombre || 'No asignado'}</span>
+                    {/* Hora y Precio */}
+                    <div className="flex flex-col items-end gap-3 text-right">
+                        <div className="bg-[#CFAE79]/10 border border-[#CFAE79]/30 px-4 py-2.5 rounded-xl text-center shadow-inner">
+                            <span className="block text-xl font-bold text-[#CFAE79]">{formatearHora(reserva.fechaHora)}</span>
+                        </div>
+                        <span className="text-lg font-bold text-white">${reserva.servicio?.precio || '0.00'}</span>
                     </div>
                 </div>
-            </div>
 
-            {/* Botones de acción */}
-            <div className="flex gap-3 mt-1">
-                <button className="flex-1 bg-transparent border border-gray-500/50 text-gray-300 py-3.5 rounded-[14px] font-semibold transition-all text-[15px] active:scale-95 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/50">
-                    Cancelar Cita
-                </button>
+                {/* Botón de Cancelar Cita */}
+                {reserva.estado !== 'CANCELADA' && reserva.estado !== 'COMPLETADA' && (
+                    <div className="px-5 pb-5 pt-1">
+                        <button 
+                            onClick={handleCancelarCita}
+                            disabled={isCanceling}
+                            className={`w-full border py-3 rounded-xl font-semibold transition-all text-[15px] active:scale-95 
+                                ${isCanceling 
+                                    ? 'bg-gray-500/10 border-gray-500/30 text-gray-400 cursor-not-allowed' 
+                                    : 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20'}`
+                            }>
+                            {isCanceling ? 'Cancelando...' : 'Cancelar Cita'}
+                        </button>
+                    </div>
+                )}
+
             </div>
         </div>
     );

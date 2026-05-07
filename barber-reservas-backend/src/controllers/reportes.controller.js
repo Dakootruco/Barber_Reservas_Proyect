@@ -9,15 +9,48 @@ const prisma = new PrismaClient();
 
 export const obtenerReportes = async (req, res) => {
   try {
-    // 1. Top servicios: cuántas veces se ha reservado cada servicio
-    const servicios = await prisma.servicio.findMany({
-      include: {
-        reservas: {
-          where: { estado: { notIn: ['CANCELADA', 'NO_LLEGO'] } },
-          select: { id: true, servicio: { select: { precio: true } } }
+    // 1. Preparar fechas para las métricas
+    const seisAtras = new Date();
+    seisAtras.setMonth(seisAtras.getMonth() - 5);
+    seisAtras.setDate(1);
+    seisAtras.setHours(0, 0, 0, 0);
+
+    // Disparar las consultas pesadas en paralelo
+    const [
+      servicios,
+      clientesPorMes,
+      totalReservasValidas,
+      reservasConPrecio,
+      totalClientes
+    ] = await Promise.all([
+      // 1. Servicios y sus reservas
+      prisma.servicio.findMany({
+        include: {
+          reservas: {
+            where: { estado: { notIn: ['CANCELADA', 'NO_LLEGO'] } },
+            select: { id: true, servicio: { select: { precio: true } } }
+          }
         }
-      }
-    });
+      }),
+      // 2. Clientes por mes
+      prisma.cliente.findMany({
+        where: { createdAt: { gte: seisAtras } },
+        select: { createdAt: true }
+      }),
+      // 3. Total reservas válidas
+      prisma.reserva.count({
+        where: { estado: { notIn: ['CANCELADA', 'NO_LLEGO'] } }
+      }),
+      // 4. Ingresos totales (reservas con precio)
+      prisma.reserva.findMany({
+        where: { estado: { notIn: ['CANCELADA', 'NO_LLEGO'] } },
+        include: { servicio: { select: { precio: true } } }
+      }),
+      // 5. Total clientes
+      prisma.cliente.count()
+    ]);
+
+    // --- PROCESAMIENTO EN MEMORIA ---
 
     const topServicios = servicios
       .map(s => ({
@@ -28,7 +61,6 @@ export const obtenerReportes = async (req, res) => {
       .sort((a, b) => b.cantidad - a.cantidad)
       .slice(0, 5);
 
-    // 2. Distribución de ingresos por servicio (para pie chart)
     const COLORS = ['#CFAE79', '#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444'];
     const distribucionIngresos = servicios
       .map((s, i) => ({
@@ -38,17 +70,6 @@ export const obtenerReportes = async (req, res) => {
       }))
       .filter(s => s.value > 0)
       .sort((a, b) => b.value - a.value);
-
-    // 3. Crecimiento de clientes por mes (últimos 6 meses)
-    const seisAtras = new Date();
-    seisAtras.setMonth(seisAtras.getMonth() - 5);
-    seisAtras.setDate(1);
-    seisAtras.setHours(0, 0, 0, 0);
-
-    const clientesPorMes = await prisma.cliente.findMany({
-      where: { createdAt: { gte: seisAtras } },
-      select: { createdAt: true }
-    });
 
     const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     const crecimientoClientes = {};
@@ -68,20 +89,8 @@ export const obtenerReportes = async (req, res) => {
 
     const clientGrowthData = Object.values(crecimientoClientes);
 
-    // 4. KPIs rápidos
-    const totalReservasValidas = await prisma.reserva.count({
-      where: { estado: { notIn: ['CANCELADA', 'NO_LLEGO'] } }
-    });
-
-    const reservasConPrecio = await prisma.reserva.findMany({
-      where: { estado: { notIn: ['CANCELADA', 'NO_LLEGO'] } },
-      include: { servicio: { select: { precio: true } } }
-    });
-
     const ingresosTotales = reservasConPrecio.reduce((acc, r) => acc + (r.servicio?.precio || 0), 0);
     const ticketPromedio = totalReservasValidas > 0 ? ingresosTotales / totalReservasValidas : 0;
-
-    const totalClientes = await prisma.cliente.count();
 
     res.json({
       topServicios,

@@ -27,7 +27,7 @@ export default function Service() {
   }, []);
 
   return (
-    <div className="p-8">
+    <div className="bg-linear-to-b from-[#1a1e2d] via-[#151620] to-[#0a0b10] min-h-screen p-8 pb-32">
       <h2 className="text-3xl font-bold text-zinc-100 tracking-wide mb-8">Nuestros Servicios</h2>
 
       {/* Contenedor Grid Responsivo: 1 columna en móviles, 2 en tablets, 3 o 4 en pantallas grandes */}
