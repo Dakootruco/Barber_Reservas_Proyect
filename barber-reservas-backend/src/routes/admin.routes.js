@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import {
   obtenerTodasLasReservasAdmin,
-  actualizarEstadoReserva
+  actualizarEstadoReserva,
+  eliminarReserva
 } from '../controllers/reserva.controller.js';
 
 import {
@@ -38,6 +39,10 @@ router.get('/reservas', obtenerTodasLasReservasAdmin);
 // Tarea #8: Confirmar/Cancelar una reserva (Actualizar estado)
 // Se accede vía PUT http://localhost:3000/api/admin/reservas/:id
 router.put('/reservas/:id', actualizarEstadoReserva);
+
+// Tarea #8.5: Eliminar una reserva
+// Se accede vía DELETE http://localhost:3000/api/admin/reservas/:id
+router.delete('/reservas/:id', eliminarReserva);
 
 // Tarea #9: Agregar nuevos cortes/servicios
 // Se accede vía POST http://localhost:3000/api/admin/servicios

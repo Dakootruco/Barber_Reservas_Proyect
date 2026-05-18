@@ -62,3 +62,20 @@ export const actualizarEstadoReserva = async (req, res) => {
     res.status(500).json({ error: "Ocurrió un error al intentar cambiar el estado de la reserva" });
   }
 };
+
+// ==========================================
+// ELIMINAR RESERVA (VISTA ADMIN)
+// ==========================================
+
+export const eliminarReserva = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.reserva.delete({
+      where: { id: parseInt(id) }
+    });
+    res.json({ mensaje: "Reserva eliminada correctamente" });
+  } catch (error) {
+    console.error("Error al eliminar reserva:", error);
+    res.status(500).json({ error: "Error al eliminar la reserva" });
+  }
+};

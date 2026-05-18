@@ -51,13 +51,13 @@ model Reserva {
   
   // Relaciones
   clienteId  Int
-  cliente    Cliente  @relation(fields: [clienteId], references: [id])
+  cliente    Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   
   barberoId  Int
-  barbero    Barbero  @relation(fields: [barberoId], references: [id])
+  barbero    Barbero  @relation(fields: [barberoId], references: [id], onDelete: Cascade)
   
   servicioId Int
-  servicio   Servicio @relation(fields: [servicioId], references: [id])
+  servicio   Servicio @relation(fields: [servicioId], references: [id], onDelete: Cascade)
 
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
